@@ -1,0 +1,21 @@
+---
+description: iOS Memory App architecture — follow AGENT.md when editing Swift code
+globs: iOSApp/**
+alwaysApply: false
+---
+
+# iOS Architecture
+
+Before writing or editing any file under `iOSApp/`, read and follow `iOSApp/AGENT.md`.
+
+## Non-negotiables
+
+- **MVVM + Clean Architecture** — Views are thin; ViewModels hold state; Use Cases own business logic; Repositories own data access.
+- **Dependency direction is downward** — View → ViewModel → UseCase → Repository. Never import SwiftUI outside the presentation layer.
+- **Dependency injection via AppContainer** — inject dependencies through `init`. No `.shared` singletons inside ViewModels or Use Cases.
+- **Navigation in ViewModels** — use `router.navigate(to:)`, not inline `NavigationLink` destinations in list rows.
+- **Async/await** — use structured concurrency; prefer `async let` for independent parallel work.
+- **Theme tokens** — never hardcode colors or fonts in views; use `Color.theme.*` and `Font.theme.*` per `docs/design/theme-guide.md`.
+- **LLM tiers** — use `LLMClient.complete(tier:)` with primary → fallback; never raw model strings in use cases (see `iOSApp/AGENT.md` Section 6.7).
+
+When unsure about a pattern, check the relevant section in `iOSApp/AGENT.md` before implementing.
