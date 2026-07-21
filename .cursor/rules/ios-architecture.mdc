@@ -1,21 +1,67 @@
 ---
-description: iOS Memory App architecture — follow AGENT.md when editing Swift code
+description: MindMapper iOS architecture — MVVM + Clean Architecture; read AGENT.md before coding
 globs: iOSApp/**
 alwaysApply: false
 ---
 
 # iOS Architecture
 
-Before writing or editing any file under `iOSApp/`, read and follow `iOSApp/AGENT.md`.
+Before writing or editing anything under `iOSApp/`, read and follow `iOSApp/AGENT.md`.
 
-## Non-negotiables
+## Layers (dependency goes downward only)
 
-- **MVVM + Clean Architecture** — Views are thin; ViewModels hold state; Use Cases own business logic; Repositories own data access.
-- **Dependency direction is downward** — View → ViewModel → UseCase → Repository. Never import SwiftUI outside the presentation layer.
-- **Dependency injection via AppContainer** — inject dependencies through `init`. No `.shared` singletons inside ViewModels or Use Cases.
-- **Navigation in ViewModels** — use `router.navigate(to:)`, not inline `NavigationLink` destinations in list rows.
-- **Async/await** — use structured concurrency; prefer `async let` for independent parallel work.
-- **Theme tokens** — never hardcode colors or fonts in views; use `Color.theme.*` and `Font.theme.*` per `docs/design/theme-guide.md`.
-- **LLM tiers** — use `LLMClient.complete(tier:)` with primary → fallback; never raw model strings in use cases (see `iOSApp/AGENT.md` Section 6.7).
+```
+View → ViewModel → UseCase → Repository → DB/API
+```
 
-When unsure about a pattern, check the relevant section in `iOSApp/AGENT.md` before implementing.
+- **Presentation:** SwiftUI Views + ViewModels
+- **Domain:** pure Swift models, repository protocols, use cases — no UIKit/SwiftUI/GRDB/Supabase
+- **Data:** repository implementations, GRDB local models, remote clients
+
+## Folder rules
+
+- One ViewModel per View. Never share a ViewModel across Views.
+- Feature folders import `Domain` and `Core` only — never another feature.
+- Domain models never import GRDB, Supabase, or other frameworks.
+- Wire new features in this order: Domain model → repo protocol → Data impl → UseCase → ViewModel → View → `AppContainer`.
+
+## Hard bans (see AGENT.md §14)
+
+- No business logic / API / DB calls in a View `body`
+- No `SwiftUI` import in ViewModels
+- No `.shared` singletons inside ViewModels or Use Cases — inject via `init`
+- No raw LLM model strings — use `LLMClient.complete(tier:)`
+- No hardcoded colors/fonts — use `Color.theme.*` / `Font.theme.*` (`docs/design/theme-guide.md`)
+- No `NavigationView` — use `NavigationStack` + `AppRouter`
+- No `DispatchQueue.main.async` — use `@MainActor`
+- No force unwraps except documented `try!` in `DatabaseManager` migrations
+
+When unsure, check the matching section in `iOSApp/AGENT.md` before implementing.
+
+## After code changes — verify with xcodebuild
+
+After any meaningful Swift/project change under `iOSApp/`, run a terminal build before considering the work done. Prefer the repo root as cwd. Pick **one** command based on the situation:
+
+**1. Full Debug build (default)** — use after feature work, when you need a real signed Debug build, or when checking packaging/signing-related issues:
+
+```bash
+xcodebuild \
+  -project iOSApp/MindMapper/MindMapper.xcodeproj \
+  -scheme MindMapper \
+  -configuration Debug \
+  -destination 'generic/platform=iOS' \
+  build
+```
+
+**2. Compile-only / type-check (faster)** — use for quick iteration, CI-style checks, or when codesigning would block (no team/profile). Prefer this for most mid-task verify loops:
+
+```bash
+xcodebuild \
+  -project iOSApp/MindMapper/MindMapper.xcodeproj \
+  -scheme MindMapper \
+  -destination 'generic/platform=iOS' \
+  build \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+Fix any build errors before finishing. Do not skip this step after non-trivial iOS code changes.

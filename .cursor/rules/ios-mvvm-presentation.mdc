@@ -1,0 +1,61 @@
+---
+description: MindMapper Views and ViewModels — thin UI, @MainActor VMs, display models
+globs: iOSApp/**/Features/**/*.swift
+alwaysApply: false
+---
+
+# MVVM Presentation
+
+Source of truth: `iOSApp/AGENT.md` §3, §5, §9, §10.
+
+## Views
+
+Views only render state and forward actions to the ViewModel.
+
+```swift
+// ✅
+struct ChatView: View {
+    @StateObject private var viewModel: ChatViewModel
+    var body: some View {
+        ScrollView { /* read viewModel.* */ }
+            .task { await viewModel.loadSession() } // prefer .task over Task in onAppear
+    }
+}
+
+// ❌ Never call LLM/DB/API from body; no business if/else beyond UI branching
+```
+
+- Local UI only: `@State`, `@FocusState`
+- Screen data: `@StateObject` / `@ObservedObject` ViewModel
+- App-wide: `@EnvironmentObject` (`AppRouter`, `AppContainer`)
+- Own ViewModel you create → `@StateObject`; ViewModel passed in → `@ObservedObject`
+
+## ViewModels
+
+```swift
+@MainActor
+final class ChatViewModel: ObservableObject {
+    @Published private(set) var messages: [MessageDisplayModel] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
+    private let saveMemoryUseCase: SaveMemoryUseCaseProtocol
+    private let router: AppRouter
+
+    init(saveMemoryUseCase: SaveMemoryUseCaseProtocol, router: AppRouter) {
+        self.saveMemoryUseCase = saveMemoryUseCase
+        self.router = router
+    }
+
+    func sendMessage() async {
+        isLoading = true
+        defer { isLoading = false }
+        // call use cases only — never DatabaseManager / LLMClient directly
+    }
+}
+```
+
+- Import `Foundation` + `Combine` only — never `SwiftUI`
+- Dependencies only via `init` — never `SomeThing()` inside the VM
+- Convert domain → display models in the ViewModel (formatted strings, icons, theme colors)
+- Navigate with `router.navigate(to:)` — not `NavigationLink` destinations in list rows

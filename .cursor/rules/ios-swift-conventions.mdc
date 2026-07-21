@@ -1,0 +1,49 @@
+---
+description: MindMapper Swift conventions — async, errors, naming, style, testing
+globs: iOSApp/**/*.swift
+alwaysApply: false
+---
+
+# Swift Conventions
+
+Source of truth: `iOSApp/AGENT.md` §6–§7, §11–§13.
+
+## Async / concurrency
+
+- Prefer `.task { }` over `Task { }` in `onAppear` (auto-cancels)
+- Independent work → `async let` or `TaskGroup`, not sequential `await`
+- Stream tokens with `AsyncThrowingStream`; update `@Published` incrementally
+- Use `defer { isLoading = false }` so loading always clears
+- Check `Task.checkCancellation()` in long loops
+- All ViewModels: `@MainActor`. Heavy CPU: `Task.detached` — never `DispatchQueue.main.async`
+
+## Errors
+
+- Map failures to typed `AppError` with user-facing `errorDescription` / `isRetryable`
+- Catch `AppError` at the ViewModel boundary; never show raw `Error.localizedDescription`
+- LLM: rate-limit/quota on primary → one fallback retry → then `AppError.llmCallFailed`
+
+## Naming
+
+| Thing | Pattern | Example |
+|---|---|---|
+| Protocol | `*Protocol` | `MemoryRepositoryProtocol` |
+| Use case | `VerbNounUseCase` | `SaveMemoryUseCase` |
+| View / VM | `FeatureNameView(Model)` | `ChatViewModel` |
+| Display model | `*DisplayModel` | `MessageDisplayModel` |
+| Bools | `is`/`has`/`can`/`should` | `isLoading`, `canRetry` |
+| Enum cases | lowerCamelCase | `.store`, `.query` |
+
+## Style
+
+- File order: imports → type → published → private props → init → public → private → extensions
+- Functions ≤ ~30 lines; files ≤ ~300 lines
+- Default to `private`; `@Published private(set)` for read-only UI state
+- No force unwraps (`!`) except documented migration `try!`
+
+## Tests
+
+- AAA pattern; name `test_method_expectedBehavior`
+- Mock via protocols (`MockMemoryRepository`, etc.)
+- Unit-test use cases, ViewModels, guards; integration-test repos with in-memory SQLite
+- Views: Previews are enough — no logic in Views to test

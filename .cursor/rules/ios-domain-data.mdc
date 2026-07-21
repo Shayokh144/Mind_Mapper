@@ -1,0 +1,45 @@
+---
+description: MindMapper Domain and Data layers — pure models, use cases, repositories
+globs: iOSApp/**/Domain/**/*.swift,iOSApp/**/Data/**/*.swift
+alwaysApply: false
+---
+
+# Domain & Data Layers
+
+Source of truth: `iOSApp/AGENT.md` §4.
+
+## Domain models
+
+- Plain Swift structs/enums; `import Foundation` only
+- No GRDB, Supabase, SwiftUI, or Color types
+
+## Repository protocols (Domain)
+
+```swift
+protocol MemoryRepositoryProtocol {
+    func save(_ memory: Memory) async throws
+    func fetchAll(for userId: String) async throws -> [Memory]
+}
+```
+
+Protocols live in `Domain/Repositories/`. Implementations live in `Data/Repositories/`.
+
+## Use cases (Domain)
+
+- Exactly one public `execute(...)` method
+- Always pair `SomethingUseCaseProtocol` + `SomethingUseCase`
+- Inject every dependency via `init`
+- No UI types (`Color`, `View`, `@Published`)
+- LLM calls use tiers (`.nano` / `.mini` / `.full` / `.embed`), never raw model name strings
+
+```swift
+protocol SaveMemoryUseCaseProtocol {
+    func execute(text: String, sessionId: String) async throws -> String
+}
+```
+
+## Data repositories
+
+- Conform to Domain protocols
+- Map GRDB/API records → domain models before returning
+- Never return raw DB/API types to ViewModels or Use Cases

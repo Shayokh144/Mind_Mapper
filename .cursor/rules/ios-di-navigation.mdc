@@ -1,0 +1,40 @@
+---
+description: MindMapper DI and navigation — AppContainer composition root, AppRouter
+globs: iOSApp/**/Core/**/*.swift,iOSApp/**/App/**/*.swift
+alwaysApply: false
+---
+
+# Dependency Injection & Navigation
+
+Source of truth: `iOSApp/AGENT.md` §5, §8.
+
+## AppContainer
+
+- Single composition root in `Core/DI/AppContainer.swift`
+- Nothing constructs infrastructure with `SomeClass()` outside the container
+- Expose `make*UseCase()` and `make*ViewModel(...)` factories
+- ViewModels are always created fresh per screen
+
+```swift
+func makeChatViewModel(sessionId: String, router: AppRouter) -> ChatViewModel {
+    ChatViewModel(
+        sessionId: sessionId,
+        saveMemoryUseCase: makeSaveMemoryUseCase(),
+        router: router
+    )
+}
+```
+
+Prefer creating ViewModels in `navigationDestination` (or equivalent) via the container, then pass into the View.
+
+## AppRouter
+
+- `NavigationStack` + typed `NavigationPath` (iOS 16+) — never `NavigationView`
+- `AppRouter` is the only navigation source of truth
+- ViewModels call `router.navigate(to:)`, `navigateBack()`, `present(_:)`, `dismissSheet()`
+- Deep links go through `AppRouter`
+- Inject router with `@EnvironmentObject` — do not prop-drill more than two levels
+
+## Tabs
+
+Root uses `TabView` with Chats / Memories / Settings; tint with `Color.theme.accent`.
