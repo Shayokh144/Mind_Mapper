@@ -1,0 +1,24 @@
+---
+description: Never git add or commit unless the user explicitly asks
+alwaysApply: true
+---
+
+# Git Staging & Commits
+
+Do **not** run `git add`, `git commit`, or otherwise stage/commit changes unless the user **explicitly** asks in the current message (e.g. “commit this”, “create a commit”, “git add and commit”).
+
+## Hard rules
+
+- Completing a task, checklist, or “Done When” item is **not** permission to commit — even if the task doc says to commit.
+- Do not infer commit permission from earlier messages; require an explicit ask **now**.
+- Do not stage files “in preparation” for a later commit.
+- After finishing work, leave changes unstaged/uncommitted and tell the user what changed; they can ask to commit when ready.
+
+## Allowed without an explicit commit ask
+
+- Read-only git commands: `git status`, `git diff`, `git log`, `git branch`, etc.
+- Code/file edits the user requested.
+
+## When the user does ask to commit
+
+Follow the project’s committing protocol (status/diff/log, draft message, stage only relevant files, commit via HEREDOC, never push unless also asked).
