@@ -917,8 +917,13 @@ All dependencies are wired once in a single `AppContainer`. Nothing inside the a
 final class AppContainer: ObservableObject {
 
     // MARK: — Infrastructure (created once, shared)
-    lazy var database = try! DatabaseManager()
+    /// Injected from `MindMapperApp` only after `DatabaseManager.shared` succeeds (no `try!`).
+    let database: DatabaseManager
     lazy var supabaseClient = SupabaseClientWrapper()
+
+    init(database: DatabaseManager) {
+        self.database = database
+    }
 
     // MARK: — Repositories
     lazy var sessionRepository: SessionRepositoryProtocol = SessionRepository(database: database)
@@ -1187,14 +1192,25 @@ final class ChatViewModel: ObservableObject {
 ```swift
 // ❌ Never
 let url = URL(string: "https://api.openai.com")!
+static let shared = try! DatabaseManager()
 
-// ✅ Always
+// ✅ Always — guard / throws for recoverable typed errors
 guard let url = URL(string: "https://api.openai.com") else {
     throw AppError.llmCallFailed(underlying: URLError(.badURL))
 }
+
+// ✅ Always — do/catch + AppLogger for bootstrap / infrastructure failures
+static let shared: DatabaseManager? = {
+    do {
+        return try DatabaseManager()
+    } catch {
+        AppLogger.error("Failed to open or migrate memory.db", error: error)
+        return nil
+    }
+}()
 ```
 
-Exception: `try!` is acceptable only in `DatabaseManager.init()` for migrations (crash-on-launch is appropriate if the database is corrupt). Document why.
+Do not use `try!`, `as!`, or implicitly unwrapped optionals to “keep bootstrap simple.” Log via `AppLogger` (`NSLog` in development; wire to Sentry before release — see `docs/pre-release-checklist.md`).
 
 ### 12.5 — Trailing Closures and Clarity
 
@@ -1299,7 +1315,7 @@ These are the most common mistakes. Treat each as a hard rule.
 | Hardcode `Color(hex: "#3478F6")` in a View | Use `Color.theme.accent` |
 | Use `DispatchQueue.main.async` | Use `@MainActor` |
 | Use `NavigationView` | Use `NavigationStack` |
-| Force unwrap optionals with `!` (outside documented exceptions) | Use `guard let` or `if let` |
+| Force unwrap with `!` / `try!` / `as!` | Use `guard let`, `do/catch`, and `AppLogger` |
 | Write business logic in a View's `body` | Move it to a ViewModel method |
 | Share a ViewModel between two Views | Give each View its own ViewModel |
 | Create a dependency with `SomeService()` inside a ViewModel | Inject via `init` |

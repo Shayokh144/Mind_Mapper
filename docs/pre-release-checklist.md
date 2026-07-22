@@ -19,6 +19,7 @@ These decisions apply throughout the project. Review them before release to conf
 | **Code location** | `iOSApp/` | Same |
 | **Architecture guide** | `iOSApp/AGENT.md` | Same |
 | **Docs & tasks** | `docs/` | Same |
+| **Crash / error logging** | Local `AppLogger` (`NSLog`) in `Core/Logging/AppLogger.swift` | Wire `AppLogger` to Sentry (or equivalent) — see checklist below |
 
 ### LLM model tiers — primary + fallback
 
@@ -103,8 +104,21 @@ set -a && source .env && set +a
 - [ ] Tested on oldest supported iOS version you plan to support
 - [ ] No hardcoded colors/fonts — theme tokens used throughout
 - [ ] Error messages are user-friendly (no raw `localizedDescription`)
+- [ ] Remote crash/error logging integrated (Sentry or equivalent) via `AppLogger` — see **Observability** below
 - [ ] Delete flows work (session, memory, account)
 - [ ] App handles offline / no-network gracefully
+
+### Observability (crash & error logging)
+
+Today logging is local only: `AppLogger` in `iOSApp/MindMapper/MindMapper/Core/Logging/AppLogger.swift` uses `NSLog`. Call sites must keep using `AppLogger` so a remote backend can be swapped in one place.
+
+- [ ] Choose a provider (recommended: [Sentry](https://sentry.io) for iOS; alternatives: Firebase Crashlytics, Bugsnag)
+- [ ] Create the project / DSN; store the DSN in Supabase secrets or Xcode config — never hardcode in source committed to git if the key is sensitive
+- [ ] Add the SDK (e.g. Sentry Swift package) and initialize in `MindMapperApp` at launch
+- [ ] Replace the bodies of `AppLogger.error` / `AppLogger.info` to forward to the SDK (keep `NSLog` in DEBUG if useful)
+- [ ] Verify a test error appears in the dashboard (`AppLogger.error("Sentry smoke test", error: …)`)
+- [ ] Confirm PII policy: do not send memory text, chat content, or emails in breadcrumbs without privacy-policy disclosure
+- [ ] Privacy policy updated if crash reports / diagnostics are collected
 
 ### App Store readiness
 

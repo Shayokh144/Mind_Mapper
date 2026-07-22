@@ -56,3 +56,26 @@ Mind_Mapper/
 | 19 | [Delete Feature](docs/tasks/phase_1/19-delete-feature_iOS.md) | iOS |
 | 20 | [Full Test Suite](docs/tasks/phase_1/20-test-suite_iOS.md) | iOS |
 | 21 | [Polish & Portfolio Prep](docs/tasks/phase_1/21-polish-portfolio_iOS.md) | iOS |
+
+## Inspect local `memory.db` (Simulator)
+
+Run the app once on a simulator so the database is created, then:
+
+```bash
+# 1) Find a booted simulator UDID
+xcrun simctl list devices booted
+
+# 2) Resolve the app data container (replace UDID)
+DATA=$(xcrun simctl get_app_container <UDID> abu.taher.com.MindMapper data)
+DB="$DATA/Documents/memory.db"
+
+# 3a) Open in DB Browser for SQLite (install: brew install --cask db-browser-for-sqlite)
+open -a "/Applications/DB Browser for SQLite.app" "$DB"
+
+# 3b) Or inspect from Terminal
+sqlite3 "$DB" ".tables"
+sqlite3 "$DB" "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%';"
+sqlite3 "$DB" ".schema"
+```
+
+If `open -a "DB Browser for SQLite"` fails after a fresh install, use the full app path as in `3a` above (Launch Services may not have indexed the name yet).

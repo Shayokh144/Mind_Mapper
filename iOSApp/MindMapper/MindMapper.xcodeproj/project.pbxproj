@@ -10,16 +10,33 @@
 		0499EE4830106E2A00E3837F /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 0499EE4730106E2A00E3837F /* GRDB */; };
 		0499EE4B30106F0500E3837F /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 0499EE4A30106F0500E3837F /* Auth */; };
 		0499EE4D30106F0500E3837F /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 0499EE4C30106F0500E3837F /* Functions */; };
+		A100000D300FC88100E3837F /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = A100000C300FC88100E3837F /* GRDB */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A1000008300FC88100E3837F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0499EE2A300FC88100E3837F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0499EE31300FC88100E3837F;
+			remoteInfo = MindMapper;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		0499EE32300FC88100E3837F /* MindMapper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MindMapper.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1000001300FC88100E3837F /* MindMapperTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MindMapperTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0499EE34300FC88100E3837F /* MindMapper */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MindMapper;
+			sourceTree = "<group>";
+		};
+		A1000002300FC88100E3837F /* MindMapperTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MindMapperTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +52,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1000003300FC88100E3837F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A100000D300FC88100E3837F /* GRDB in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -42,6 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				0499EE34300FC88100E3837F /* MindMapper */,
+				A1000002300FC88100E3837F /* MindMapperTests */,
 				0499EE33300FC88100E3837F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -50,6 +76,7 @@
 			isa = PBXGroup;
 			children = (
 				0499EE32300FC88100E3837F /* MindMapper.app */,
+				A1000001300FC88100E3837F /* MindMapperTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -82,6 +109,30 @@
 			productReference = 0499EE32300FC88100E3837F /* MindMapper.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A1000006300FC88100E3837F /* MindMapperTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A100000B300FC88100E3837F /* Build configuration list for PBXNativeTarget "MindMapperTests" */;
+			buildPhases = (
+				A1000004300FC88100E3837F /* Sources */,
+				A1000003300FC88100E3837F /* Frameworks */,
+				A1000005300FC88100E3837F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1000007300FC88100E3837F /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A1000002300FC88100E3837F /* MindMapperTests */,
+			);
+			name = MindMapperTests;
+			packageProductDependencies = (
+				A100000C300FC88100E3837F /* GRDB */,
+			);
+			productName = MindMapperTests;
+			productReference = A1000001300FC88100E3837F /* MindMapperTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -94,6 +145,10 @@
 				TargetAttributes = {
 					0499EE31300FC88100E3837F = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					A1000006300FC88100E3837F = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 0499EE31300FC88100E3837F;
 					};
 				};
 			};
@@ -116,12 +171,20 @@
 			projectRoot = "";
 			targets = (
 				0499EE31300FC88100E3837F /* MindMapper */,
+				A1000006300FC88100E3837F /* MindMapperTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		0499EE30300FC88100E3837F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1000005300FC88100E3837F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -138,7 +201,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1000004300FC88100E3837F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A1000007300FC88100E3837F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0499EE31300FC88100E3837F /* MindMapper */;
+			targetProxy = A1000008300FC88100E3837F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0499EE3B300FC88200E3837F /* Debug */ = {
@@ -330,6 +408,52 @@
 			};
 			name = Release;
 		};
+		A1000009300FC88100E3837F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8PSF52429N;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = abu.taher.com.MindMapperTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MindMapper.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MindMapper";
+			};
+			name = Debug;
+		};
+		A100000A300FC88100E3837F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8PSF52429N;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = abu.taher.com.MindMapperTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MindMapper.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MindMapper";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -347,6 +471,15 @@
 			buildConfigurations = (
 				0499EE3E300FC88200E3837F /* Debug */,
 				0499EE3F300FC88200E3837F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A100000B300FC88100E3837F /* Build configuration list for PBXNativeTarget "MindMapperTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1000009300FC88100E3837F /* Debug */,
+				A100000A300FC88100E3837F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -387,6 +520,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0499EE4930106F0500E3837F /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Functions;
+		};
+		A100000C300FC88100E3837F /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0499EE4630106E2A00E3837F /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			productName = GRDB;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
