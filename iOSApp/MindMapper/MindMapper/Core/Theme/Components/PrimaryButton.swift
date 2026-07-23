@@ -10,17 +10,7 @@ struct PrimaryButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Spacing.sm) {
-                if isLoading {
-                    ProgressView()
-                        .tint(Color.theme.onAccent)
-                } else {
-                    if let icon {
-                        Image(systemName: icon)
-                            .font(.theme.iconButton)
-                    }
-                    Text(title)
-                        .font(.theme.headline)
-                }
+                labelContent
             }
             .foregroundStyle(Color.theme.onAccent)
             .frame(maxWidth: .infinity)
@@ -30,6 +20,26 @@ struct PrimaryButton: View {
         }
         .buttonStyle(ThemePressButtonStyle(filled: true))
         .disabled(!isEnabled || isLoading)
+    }
+
+    @ViewBuilder
+    private var labelContent: some View {
+        if isLoading {
+            ProgressView()
+                .tint(Color.theme.onAccent)
+        } else {
+            titleContent
+        }
+    }
+
+    @ViewBuilder
+    private var titleContent: some View {
+        if let icon {
+            Image(systemName: icon)
+                .font(.theme.iconButton)
+        }
+        Text(title)
+            .font(.theme.headline)
     }
 }
 

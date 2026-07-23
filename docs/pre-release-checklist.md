@@ -11,6 +11,7 @@ These decisions apply throughout the project. Review them before release to conf
 | Area | Development (now) | Production (release) |
 |---|---|---|
 | **Apple account** | Free Apple ID — run on your own iPhone (re-sign every ~7 days) | Enrol in [Apple Developer Program](https://developer.apple.com) ($99/year) for App Store / TestFlight |
+| **Auth** | Email + password ([task 07](tasks/phase_1/07-authentication_iOS.md)); **forgot password + confirm email** via custom URL scheme ([task 07a](tasks/phase_1/07a-forgot-password_iOS.md)) — free Supabase + free Apple ID | Optional Universal Links upgrade; add **Sign in with Apple** (paid Developer Program) |
 | **LLM provider** | Google Gemini free tier (`GEMINI_API_KEY`) | OpenAI or another paid provider (`OPENAI_API_KEY`) |
 | **LLM models** | Primary + fallback per tier (see below) | OpenAI primary + fallback pairs |
 | **LLM fallback** | Auto-retry with fallback model on rate limit (429) or quota exceeded | Same — required before release |
@@ -86,6 +87,28 @@ set -a && source .env && set +a
 - [ ] Supabase plan reviewed — upgrade to Pro if free-tier pause is unacceptable for real users
 - [ ] Removed dev API keys from `.env` (or deleted the file)
 
+### Sign in with Apple (deferred from task 07)
+
+Requires a **paid** Apple Developer Program account. Skip until you enrol — email auth is enough during development.
+
+- [ ] In Apple Developer portal → Identifiers → App ID (`abu.taher.com.MindMapper`): enable **Sign in with Apple** and save
+- [ ] In Xcode: MindMapper target → Signing & Capabilities → + Capability → **Sign in with Apple**
+- [ ] In Supabase → Authentication → Providers → **Apple**: enable and set Client IDs to the app bundle ID (`abu.taher.com.MindMapper`)
+- [ ] Native iOS only: use `AuthenticationServices` + `supabase.auth.signInWithIdToken(provider: .apple, …)` — no Services ID / `.p8` / callback URL needed unless you also add web/Android OAuth later
+- [ ] Implement `signInWithApple()` on `AuthManager` / `AuthManagerProtocol`
+- [ ] Update Onboarding UI: add **Continue with Apple** PrimaryButton; keep email as SecondaryButton (or equivalent)
+- [ ] Done when: Apple button shows the native sign-in sheet; successful Apple login creates/loads the local SQLite `users` row and sets `isAuthenticated = true`
+
+### Email deep links — Universal Links upgrade (production)
+
+Phase 1 [task 07a](tasks/phase_1/07a-forgot-password_iOS.md) already supports **Confirm email** and **forgot password** on **free** Supabase + **free** Apple ID using a **custom URL scheme**. Before App Store release, optionally upgrade to Universal Links (stronger than custom schemes).
+
+- [ ] Keep Confirm email **on** for production
+- [ ] (Optional) Register **Associated Domains** + host `apple-app-site-association` — requires paid Apple Developer Program + your HTTPS domain
+- [ ] Point Supabase **Site URL** / **Redirect URLs** at the Universal Link (or keep the custom scheme from task 07a)
+- [ ] Confirm-email and recovery links both open MindMapper and complete session-from-URL + local `users` upsert
+- [ ] Done when: inbox links work reliably on device without relying on `http://localhost:3000`
+
 ### Backend & security
 
 - [ ] Primary → fallback model retry tested (rate limit / quota scenario)
@@ -98,7 +121,7 @@ set -a && source .env && set +a
 
 ### iOS app quality
 
-- [ ] All Phase 1 tasks complete (tasks 01–21)
+- [ ] All Phase 1 tasks complete (tasks 01–21, including [07a auth email deep links](tasks/phase_1/07a-forgot-password_iOS.md))
 - [ ] Full test suite passes ([task 20](tasks/phase_1/20-test-suite_iOS.md))
 - [ ] Tested on a real iPhone (not Simulator only)
 - [ ] Tested on oldest supported iOS version you plan to support

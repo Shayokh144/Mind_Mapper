@@ -55,7 +55,7 @@ static let shared: DatabaseManager? = {
 ## Style
 
 - File order: imports → type → published → private props → init → public → private → extensions
-- Functions ≤ ~30 lines; files ≤ ~300 lines
+- Size/complexity limits: see `ios-complexity.mdc` (functions ≤ 30, files/types ≤ 300, nesting ≤ 2, ≤ 4 params, ≤ 6 injected deps)
 - Default to `private`; `@Published private(set)` for read-only UI state
 - No force unwraps (`!`), `try!`, or `as!` — use `do/catch`, `guard let`, or `throws` + `AppLogger`
 

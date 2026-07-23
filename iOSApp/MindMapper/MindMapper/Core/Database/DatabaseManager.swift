@@ -51,73 +51,7 @@ nonisolated final class DatabaseManager: Sendable {
 
     private func migrate() throws {
         var migrator = DatabaseMigrator()
-
-        migrator.registerMigration("v1_initial") { db in
-            // USERS — local profile only (auth handled by Supabase)
-            try db.create(table: "users") { t in
-                t.column("id", .text).primaryKey()
-                t.column("email", .text).notNull()
-                t.column("display_name", .text)
-                t.column("created_at", .datetime).notNull()
-            }
-
-            // SESSIONS — each conversation is a session
-            try db.create(table: "sessions") { t in
-                t.column("id", .text).primaryKey()
-                t.column("user_id", .text).notNull().references("users")
-                t.column("title", .text)
-                t.column("topic_tag", .text)
-                t.column("summary", .text)
-                t.column("created_at", .datetime).notNull()
-                t.column("updated_at", .datetime).notNull()
-            }
-
-            // MESSAGES — every chat turn
-            try db.create(table: "messages") { t in
-                t.column("id", .text).primaryKey()
-                t.column("session_id", .text).notNull().references("sessions")
-                t.column("role", .text).notNull()
-                t.column("content", .text).notNull()
-                t.column("created_at", .datetime).notNull()
-            }
-
-            // MEMORIES — extracted, normalised facts
-            try db.create(table: "memories") { t in
-                t.column("id", .text).primaryKey()
-                t.column("session_id", .text).notNull().references("sessions")
-                t.column("user_id", .text).notNull()
-                t.column("raw_text", .text).notNull()
-                t.column("clean_text", .text).notNull()
-                t.column("supersedes_id", .text)
-                t.column("is_superseded", .boolean).notNull().defaults(to: false)
-                t.column("created_at", .datetime).notNull()
-            }
-
-            // MEMORY_ENTITIES — structured tags per memory
-            try db.create(table: "memory_entities") { t in
-                t.column("id", .text).primaryKey()
-                t.column("memory_id", .text).notNull().references("memories")
-                t.column("entity_type", .text).notNull()
-                t.column("entity_value", .text).notNull()
-            }
-
-            // VECTORS — float embeddings per memory (binary blob)
-            try db.create(table: "vectors") { t in
-                t.column("id", .text).primaryKey()
-                t.column("memory_id", .text).notNull().unique().references("memories")
-                t.column("embedding", .blob).notNull()
-                t.column("created_at", .datetime).notNull()
-            }
-
-            try db.create(index: "idx_messages_session", on: "messages", columns: ["session_id"])
-            try db.create(index: "idx_memories_user", on: "memories", columns: ["user_id"])
-            try db.create(
-                index: "idx_entities_lookup",
-                on: "memory_entities",
-                columns: ["entity_type", "entity_value"]
-            )
-        }
-
+        migrator.registerMigration("v1_initial", migrate: V1InitialMigration.run)
         try migrator.migrate(dbQueue)
     }
 }

@@ -1,0 +1,68 @@
+---
+description: iOS code complexity & maintainability limits (functions, files, nesting, DI count)
+globs: iOSApp/**/*.swift
+alwaysApply: false
+---
+
+# iOS Complexity & Maintainability
+
+Guidelines (not absolute). Exceptions OK for SwiftUI `body`, generated code, tests, mocks — document when intentional.
+
+## Targets (refactor above warning)
+
+| Metric | Target | Warning | Hard limit |
+|---|---|---|---|
+| Function length | ≤ 30 lines | > 30 | > 50 |
+| Cyclomatic complexity | ≤ 8 | 9–12 | > 12 |
+| Cognitive complexity | ≤ 15 | — | — |
+| Parameters | ≤ 4 | 5–6 | ≥ 7 → value object |
+| Nesting depth | ≤ 2 | 3 | ≥ 4 |
+| Local variables | ≤ 8 | > 8 | > 10 |
+| Returns per function | ≤ 3 | > 3 | — |
+| File length | ≤ 300 | > 400 | > 600 |
+| Type length | ≤ 300 | > 400 | — |
+| Functions per type | ≤ 20 | > 25 | — |
+| Stored properties | ≤ 15 | > 20 | — |
+| Injected dependencies | 3–6 | 7–8 | ≥ 9 → split type |
+
+## Do
+
+- One responsibility per function/type; descriptive names (`fetchUserProfile`, not `doTask`)
+- Early `guard` / flat code — no nested `if { if { if {`
+- Prefer DI + protocols over singletons; business logic in ViewModel / UseCase / Repository — never in SwiftUI `body`
+- Default to `private`; keep public API minimal
+- Comments explain **why**, not **what**
+- Rule of Three for duplication (extract on the third copy — don’t abstract early)
+- Composition over inheritance; readability over cleverness
+
+## Don’t
+
+```swift
+// ❌ Deep nesting
+if loggedIn {
+    if order.isValid {
+        if payment.isAvailable { ... }
+    }
+}
+
+// ❌ God type / too many collaborators
+class OrderManager { /* networking + DB + analytics + auth */ }
+
+// ❌ Parameter laundry list — use a request/value type instead
+createOrder(user, address, coupon, payment, note, deliveryTime)
+```
+
+```swift
+// ✅ Flat + focused
+guard user.isLoggedIn else { return }
+guard order.isValid else { return }
+process(order)
+```
+
+## When over limit
+
+Extract helpers, split into Repository / Service / ViewModel / Coordinator, replace large `switch` with strategy/polymorphism, group params into a struct.
+
+## Aligns with
+
+`iOSApp/AGENT.md` style (§11–13) and existing `AppContainer` DI — no third-party DI library required.

@@ -4,23 +4,30 @@ struct ThemeTextField: View {
     @Binding var text: String
     let placeholder: String
     var maxLength: Int = 500
+    var isSecure: Bool = false
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
-            TextField(placeholder, text: $text, axis: .vertical)
-                .font(.theme.body)
-                .foregroundStyle(Color.theme.textPrimary)
-                .lineLimit(1...4)
-                .onChange(of: text) { newValue in
-                    if newValue.count > maxLength {
-                        text = String(newValue.prefix(maxLength))
-                    }
+            Group {
+                if isSecure {
+                    SecureField(placeholder, text: $text)
+                } else {
+                    TextField(placeholder, text: $text, axis: .vertical)
+                        .lineLimit(1...4)
                 }
+            }
+            .font(.theme.body)
+            .foregroundStyle(Color.theme.textPrimary)
+            .onChange(of: text) { newValue in
+                if newValue.count > maxLength {
+                    text = String(newValue.prefix(maxLength))
+                }
+            }
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
         .background(Color.theme.surfaceSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.pill))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
     }
 }
 
