@@ -37,6 +37,7 @@ final class AppContainer: ObservableObject {
             authRepository: authRepository
         )
         self.networkReachability = NetworkReachabilityService()
+        LLMClient.configure(client: supabaseClient)
     }
 
     func makeLoginViewModel() -> LoginViewModel {

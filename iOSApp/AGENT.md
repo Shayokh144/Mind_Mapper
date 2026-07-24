@@ -786,10 +786,12 @@ let intent = try await LLMClient.shared.complete(
 
 | Tier | Dev primary | Dev fallback |
 |---|---|---|
-| `.nano` | `gemini-2.0-flash` | `gemini-2.0-flash-lite` |
-| `.mini` | `gemini-2.0-flash` | `gemini-1.5-flash` |
-| `.full` | `gemini-2.5-flash` | `gemini-2.0-flash` |
-| `.embed` | `text-embedding-004` | `text-embedding-004` |
+| `.nano` | `gemini-flash-lite-latest` | `gemini-3.5-flash-lite` |
+| `.mini` | `gemini-flash-latest` | `gemini-flash-lite-latest` |
+| `.full` | `gemini-3.6-flash` | `gemini-flash-latest` |
+| `.embed` | `gemini-embedding-001` | `gemini-embedding-001` |
+
+> Model IDs live only in `LLMModelConfig` (`Core/Network/LLMClient.swift`). Google free-tier IDs change; older names (`gemini-2.0-flash`, `text-embedding-004`) may return `limit: 0` / `NOT_FOUND`.
 
 Log which model succeeded (primary vs fallback) in debug builds for troubleshooting.
 

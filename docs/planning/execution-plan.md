@@ -492,10 +492,12 @@ Optionally add **Arkana** for your Supabase `anon` key as a CI/CD exercise — i
 
 | Tier | Primary | Fallback | Used for |
 |---|---|---|---|
-| nano | `gemini-2.0-flash` | `gemini-2.0-flash-lite` | Intent classify, scope guard |
-| mini | `gemini-2.0-flash` | `gemini-1.5-flash` | Extract, acknowledge, summarise |
-| full | `gemini-2.5-flash` | `gemini-2.0-flash` | Mixed / general knowledge |
-| embed | `text-embedding-004` | `text-embedding-004` | Vector embeddings |
+| nano | `gemini-flash-lite-latest` | `gemini-3.5-flash-lite` | Intent classify, scope guard |
+| mini | `gemini-flash-latest` | `gemini-flash-lite-latest` | Extract, acknowledge, summarise |
+| full | `gemini-3.6-flash` | `gemini-flash-latest` | Mixed / general knowledge |
+| embed | `gemini-embedding-001` | `gemini-embedding-001` | Vector embeddings |
+
+> IDs live in `LLMModelConfig` only. Older free-tier names (`gemini-2.0-flash`, `text-embedding-004`) may return `limit: 0` / `NOT_FOUND`.
 
 ### Production model tiers (OpenAI — primary + fallback)
 
@@ -561,7 +563,7 @@ set -a && source .env && set +a
 curl "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"
 ```
 
-**Dev models:** `gemini-2.0-flash` for chat/classification, `text-embedding-004` for embeddings.
+**Dev models:** `gemini-flash-lite-latest` / `gemini-flash-latest` for chat/classification, `gemini-embedding-001` for embeddings (see `LLMModelConfig`).
 
 #### Production — upgrade to OpenAI (or another paid provider) later
 

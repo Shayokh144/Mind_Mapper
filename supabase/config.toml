@@ -1,0 +1,14 @@
+# Minimal Supabase config for Edge Functions (remote project linked via CLI).
+# Full local stack (Docker) is not required for task 08.
+
+[project]
+id = "uhkiqfmziggrgxbamzoy"
+
+[api]
+enabled = true
+
+[functions.llm-proxy]
+verify_jwt = true
+
+[functions.embed]
+verify_jwt = true

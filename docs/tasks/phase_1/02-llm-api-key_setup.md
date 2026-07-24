@@ -72,12 +72,12 @@ You should see a JSON list of available Gemini models.
 
 | Tier | Primary | Fallback (rate limit / quota) |
 |---|---|---|
-| **nano** (classify, scope guard) | `gemini-2.0-flash` | `gemini-2.0-flash-lite` |
-| **mini** (extract, summarise, acknowledge) | `gemini-2.0-flash` | `gemini-1.5-flash` |
-| **full** (mixed / general knowledge) | `gemini-2.5-flash` | `gemini-2.0-flash` |
-| **embed** | `text-embedding-004` | `text-embedding-004` *(same — no smaller Gemini embed)* |
+| **nano** (classify, scope guard) | `gemini-flash-lite-latest` | `gemini-3.5-flash-lite` |
+| **mini** (extract, summarise, acknowledge) | `gemini-flash-latest` | `gemini-flash-lite-latest` |
+| **full** (mixed / general knowledge) | `gemini-3.6-flash` | `gemini-flash-latest` |
+| **embed** | `gemini-embedding-001` | `gemini-embedding-001` |
 
-> **Free tier limits:** Gemini's free tier has rate limits. The fallback model is used automatically when the primary hits rate limit or quota — implemented in `LLMClient` (task 08). If both fail, the user sees a friendly retry message.
+> **Free tier limits:** Gemini's free tier has rate limits and retiring model IDs. Fallback is automatic in `LLMClient` + Edge Functions (task 08). Keep `LLMModelConfig` in sync with models that still work for your API key (`ai.google.dev`).
 
 ---
 
