@@ -9,6 +9,8 @@ final class AppContainer: ObservableObject {
     let authRepository: AuthRepositoryProtocol
     let authManager: AuthManager
     let networkReachability: NetworkReachabilityService
+    let scopeGuard: ScopeGuardProtocol
+    let rateLimiter: RateLimiterProtocol
 
     /// Returns `nil` if Supabase URL config is invalid.
     static func make(database: DatabaseManager) -> AppContainer? {
@@ -38,6 +40,8 @@ final class AppContainer: ObservableObject {
         )
         self.networkReachability = NetworkReachabilityService()
         LLMClient.configure(client: supabaseClient)
+        self.scopeGuard = ScopeGuard(llmClient: LLMClient.shared)
+        self.rateLimiter = RateLimiter()
     }
 
     func makeLoginViewModel() -> LoginViewModel {
