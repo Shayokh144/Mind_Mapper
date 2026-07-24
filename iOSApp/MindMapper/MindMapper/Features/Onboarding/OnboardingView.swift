@@ -63,6 +63,7 @@ struct OnboardingView: View {
         .background(Color.theme.background.ignoresSafeArea())
         .sheet(isPresented: $showLogin) {
             LoginView(viewModel: container.makeLoginViewModel())
+                .environmentObject(container)
         }
     }
 

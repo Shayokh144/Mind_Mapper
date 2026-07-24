@@ -8,6 +8,7 @@ final class AppContainer: ObservableObject {
     let supabaseClient: SupabaseClient
     let authRepository: AuthRepositoryProtocol
     let authManager: AuthManager
+    let networkReachability: NetworkReachabilityService
 
     /// Returns `nil` if Supabase URL config is invalid.
     static func make(database: DatabaseManager) -> AppContainer? {
@@ -23,7 +24,10 @@ final class AppContainer: ObservableObject {
             supabaseURL: supabaseURL,
             supabaseKey: AppConfig.supabaseAnonKey,
             options: SupabaseClientOptions(
-                auth: .init(emitLocalSessionAsInitialSession: true)
+                auth: .init(
+                    redirectToURL: AppConfig.authCallbackURL,
+                    emitLocalSessionAsInitialSession: true
+                )
             )
         )
         let authRepository = AuthRepository(database: database)
@@ -32,10 +36,28 @@ final class AppContainer: ObservableObject {
             client: supabaseClient,
             authRepository: authRepository
         )
+        self.networkReachability = NetworkReachabilityService()
     }
 
     func makeLoginViewModel() -> LoginViewModel {
-        LoginViewModel(authManager: authManager)
+        LoginViewModel(
+            authManager: authManager,
+            networkReachability: networkReachability
+        )
+    }
+
+    func makeForgotPasswordViewModel() -> ForgotPasswordViewModel {
+        ForgotPasswordViewModel(
+            authManager: authManager,
+            networkReachability: networkReachability
+        )
+    }
+
+    func makeSetNewPasswordViewModel() -> SetNewPasswordViewModel {
+        SetNewPasswordViewModel(
+            authManager: authManager,
+            networkReachability: networkReachability
+        )
     }
 
     func makeRootViewModel() -> RootViewModel {

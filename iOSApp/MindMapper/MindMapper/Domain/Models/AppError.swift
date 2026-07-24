@@ -22,7 +22,12 @@ enum AppError: LocalizedError {
     case sessionExpired
     case invalidCredentials
     case emailConfirmationRequired
+    case passwordResetEmailSent
+    case passwordsDoNotMatch
+    case passwordTooShort
+    case authDeepLinkFailed
     case authFailed(underlying: Error)
+    case noInternet
 
     var errorDescription: String? {
         inputErrorDescription
@@ -34,7 +39,7 @@ enum AppError: LocalizedError {
 
     var isRetryable: Bool {
         switch self {
-        case .llmCallFailed, .saveFailed, .loadFailed, .embeddingFailed, .authFailed:
+        case .llmCallFailed, .saveFailed, .loadFailed, .embeddingFailed, .authFailed, .noInternet:
             return true
         default:
             return false
@@ -66,8 +71,18 @@ enum AppError: LocalizedError {
             return "Incorrect email or password."
         case .emailConfirmationRequired:
             return "Check your email to confirm your account, then sign in."
+        case .passwordResetEmailSent:
+            return "If an account exists for that email, we sent a reset link."
+        case .passwordsDoNotMatch:
+            return "Passwords don't match."
+        case .passwordTooShort:
+            return "Password must be at least 6 characters."
+        case .authDeepLinkFailed:
+            return "This link is invalid or expired. Request a new one and try again."
         case .authFailed:
             return "Couldn't sign in. Please try again."
+        case .noInternet:
+            return "You're offline. Check your connection and try again."
         default:
             return nil
         }

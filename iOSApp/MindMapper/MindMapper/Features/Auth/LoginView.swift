@@ -2,8 +2,10 @@ import SwiftUI
 
 struct LoginView: View {
     @StateObject private var viewModel: LoginViewModel
+    @EnvironmentObject private var container: AppContainer
     @Environment(\.dismiss) private var dismiss
     @State private var submitRequestID = 0
+    @State private var showForgotPassword = false
 
     init(viewModel: LoginViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -32,6 +34,9 @@ struct LoginView: View {
             .task(id: submitRequestID) {
                 guard submitRequestID > 0 else { return }
                 await viewModel.submit()
+            }
+            .sheet(isPresented: $showForgotPassword) {
+                ForgotPasswordView(viewModel: container.makeForgotPasswordViewModel())
             }
         }
     }
@@ -69,6 +74,15 @@ struct LoginView: View {
                 isSecure: true
             )
             .textContentType(viewModel.isSignUpMode ? .newPassword : .password)
+
+            if !viewModel.isSignUpMode {
+                Button("Forgot password?") {
+                    showForgotPassword = true
+                }
+                .font(.theme.body)
+                .foregroundStyle(Color.theme.accent)
+                .buttonStyle(.plain)
+            }
         }
     }
 

@@ -6,6 +6,8 @@ extension Color {
     enum theme {
         static let accent = Color("ThemeAccent")
         static let background = Color("ThemeBackground")
+        /// Session-restore / launch splash — matches `splash` icon blue.
+        static let splashBackground = Color("ThemeSplashBackground")
         static let surface = Color("ThemeSurface")
         static let surfaceSecondary = Color("ThemeSurfaceSecondary")
 

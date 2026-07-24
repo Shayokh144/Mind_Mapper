@@ -10,9 +10,14 @@ final class LoginViewModel: ObservableObject {
     @Published var isSignUpMode = false
 
     private let authManager: AuthManagerProtocol
+    private let networkReachability: NetworkReachabilityProtocol
 
-    init(authManager: AuthManagerProtocol) {
+    init(
+        authManager: AuthManagerProtocol,
+        networkReachability: NetworkReachabilityProtocol
+    ) {
         self.authManager = authManager
+        self.networkReachability = networkReachability
     }
 
     var canSubmit: Bool {
@@ -34,6 +39,7 @@ final class LoginViewModel: ObservableObject {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
+            try NetworkGate.requireConnection(networkReachability)
             if isSignUpMode {
                 try await authManager.signUp(email: trimmedEmail, password: password)
             } else {

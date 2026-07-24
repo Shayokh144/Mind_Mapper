@@ -3,26 +3,34 @@
 ---
 
 ## Category
+
 `ios`
 
 ## Estimated Time
+
 ⏱️ 3–4 hours
 
 ## Depends On
+
 Task 3 (Supabase project), Task 4 (Xcode project), Task 5 (theme system)
 
 ## Related Plan Section
+
 📄 `../planning/execution-plan.md` → Phase 2 — Auth › Steps 2.1 and 2.2
 
 ## Related UI
+
 Onboarding screen (welcome + auth) — the first screen the user sees. See mockup: Screen 1 (Onboarding).
 
 ## Deferred
-**Sign in with Apple** requires a paid Apple Developer Program account. It is tracked in [`docs/pre-release-checklist.md`](../../pre-release-checklist.md) — do not implement it in this task.
 
-**Forgot password + Confirm email** (custom URL scheme deep links) is Phase 1 task [`07a-forgot-password_iOS.md`](07a-forgot-password_iOS.md). **Free** Supabase + **free** Apple ID are enough — no $99 Apple program required.
+**Sign in with Apple** requires a paid Apple Developer Program account. It is tracked in `[docs/pre-release-checklist.md](../../pre-release-checklist.md)` — do not implement it in this task.
+
+**Forgot password + Confirm email** (custom URL scheme deep links) is Phase 1 task `[07a-forgot-password_iOS.md](07a-forgot-password_iOS.md)`. **Free** Supabase + **free** Apple ID are enough — no $99 Apple program required.
 
 ---
+
+
 
 ## What To Do
 
@@ -40,14 +48,18 @@ Onboarding screen (welcome + auth) — the first screen the user sees. See mocku
 
 ---
 
+
+
 ## ✅ Done When
 
-- [ ] Register a new user with email + password — User row appears in SQLite `users` table.
-- [ ] Kill and relaunch the app — user is still logged in (session restored from Supabase).
-- [ ] Sign out — `isAuthenticated` becomes false, OnboardingView is shown.
-- [ ] Error message appears in the UI when wrong password is entered.
+- [x] Register a new user with email + password — User row appears in SQLite `users` table.
+- [x] Kill and relaunch the app — user is still logged in (session restored from Supabase).
+- [x] Sign out — `isAuthenticated` becomes false, OnboardingView is shown.
+- [x] Error message appears in the UI when wrong password is entered.
 
 ---
+
+
 
 ## 📝 Notes
 

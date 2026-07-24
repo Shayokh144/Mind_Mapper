@@ -35,19 +35,20 @@ struct MindMapperApp: App {
 private struct AppRootHost: View {
     @StateObject private var container: AppContainer
     @ObservedObject private var authManager: AuthManager
+    @ObservedObject private var networkReachability: NetworkReachabilityService
 
     init(container: AppContainer) {
         _container = StateObject(wrappedValue: container)
         _authManager = ObservedObject(wrappedValue: container.authManager)
+        _networkReachability = ObservedObject(wrappedValue: container.networkReachability)
     }
 
     var body: some View {
         Group {
             if authManager.isRestoringSession {
-                ProgressView()
-                    .tint(Color.theme.accent)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.theme.background)
+                SessionRestoreView()
+            } else if authManager.pendingPasswordReset {
+                SetNewPasswordView(viewModel: container.makeSetNewPasswordViewModel())
             } else if authManager.isAuthenticated {
                 RootView(viewModel: container.makeRootViewModel())
             } else {
@@ -57,8 +58,41 @@ private struct AppRootHost: View {
         .environmentObject(container)
         .environmentObject(authManager)
         .animation(.easeInOut, value: authManager.isAuthenticated)
+        .animation(.easeInOut, value: authManager.pendingPasswordReset)
         .task {
             await authManager.restoreSession()
+        }
+        .onChange(of: networkReachability.status) { newStatus in
+            guard newStatus == .connected else { return }
+            Task {
+                await authManager.revalidateSessionIfNeeded()
+            }
+        }
+        .onOpenURL { url in
+            Task {
+                await authManager.handleAuthCallback(url: url)
+            }
+        }
+        .overlay(alignment: .top) {
+            if networkReachability.status == .disconnected {
+                ThemeBadge(
+                    text: AppError.noInternet.errorDescription ?? "You're offline.",
+                    icon: "wifi.slash",
+                    role: .warning
+                )
+                .padding(Spacing.lg)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut, value: networkReachability.status)
+        .overlay(alignment: .bottom) {
+            if let message = authManager.deepLinkErrorMessage {
+                ThemeBadge(text: message, icon: "xmark.circle", role: .danger)
+                    .padding(Spacing.lg)
+                    .onTapGesture {
+                        authManager.clearDeepLinkError()
+                    }
+            }
         }
     }
 }
