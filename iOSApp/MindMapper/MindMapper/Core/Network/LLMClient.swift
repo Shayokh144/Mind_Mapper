@@ -43,7 +43,7 @@ struct LLMMessage: Codable, Sendable {
 }
 
 /// Invokes Supabase Edge Functions (`llm-proxy`, `embed`). API keys stay server-side.
-final class LLMClient {
+final class LLMClient: LLMClientProtocol {
     /// Set once from `AppContainer` at launch. Use cases may call `LLMClient.shared`.
     static private(set) var shared: LLMClient!
 

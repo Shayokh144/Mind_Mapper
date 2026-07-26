@@ -68,4 +68,8 @@ final class AppContainer: ObservableObject {
     func makeRootViewModel() -> RootViewModel {
         RootViewModel(authManager: authManager)
     }
+
+    func makeClassifyIntentUseCase() -> ClassifyIntentUseCaseProtocol {
+        ClassifyIntentUseCase(llmClient: LLMClient.shared)
+    }
 }
