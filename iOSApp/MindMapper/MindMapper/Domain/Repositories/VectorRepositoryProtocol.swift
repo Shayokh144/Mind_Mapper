@@ -5,6 +5,9 @@ struct VectorSearchResult: Equatable, Sendable {
     let cleanText: String
     let similarity: Float
     let createdAt: Date
+    let sessionId: String
+    let isSuperseded: Bool
+    let supersedesId: String?
 }
 
 protocol VectorRepositoryProtocol {

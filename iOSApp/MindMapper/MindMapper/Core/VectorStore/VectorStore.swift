@@ -27,14 +27,17 @@ nonisolated struct VectorStore: Sendable {
     func search(
         queryEmbedding: [Float],
         topK: Int = 15,
-        threshold: Float = 0.55
+        threshold: Float = 0.55,
+        userId: String? = nil
     ) async throws -> [VectorSearchResult] {
         let pairs: [(embedding: Data, memory: Memory)]
         do {
             pairs = try await database.dbQueue.read { db in
-                let memories = try MemoryRecord
-                    .filter(Column("is_superseded") == false)
-                    .fetchAll(db)
+                var memoryQuery = MemoryRecord.filter(Column("is_superseded") == false)
+                if let userId {
+                    memoryQuery = memoryQuery.filter(Column("user_id") == userId)
+                }
+                let memories = try memoryQuery.fetchAll(db)
                 let memoryById = Dictionary(uniqueKeysWithValues: memories.map { ($0.id, $0) })
                 let vectors = try VectorRecord.fetchAll(db)
                 return vectors.compactMap { record -> (Data, Memory)? in
@@ -87,7 +90,10 @@ nonisolated struct VectorStore: Sendable {
                 memoryId: pair.memory.id,
                 cleanText: pair.memory.cleanText,
                 similarity: score,
-                createdAt: pair.memory.createdAt
+                createdAt: pair.memory.createdAt,
+                sessionId: pair.memory.sessionId,
+                isSuperseded: pair.memory.isSuperseded,
+                supersedesId: pair.memory.supersedesId
             )
         }
     }

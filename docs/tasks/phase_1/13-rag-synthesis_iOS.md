@@ -21,9 +21,9 @@ Chat View assistant bubble — the final answer the user reads. For cross-sessio
 
 ## What To Do
 
-- [ ] **1.** Add `resolveTemporalOrder(_ chunks: [RetrievedChunk]) -> [RetrievedChunk]` to `RAGRetriever.swift`. Sort chunks by `createdAt` ascending (oldest first). Walk the `supersedesId` chain: build a dictionary mapping oldMemoryId → newCleanText. For each chunk whose ID appears as a key in this map, annotate its `cleanText` with the prefix `[OUTDATED → replaced by: newText]` and set `isSuperseded = true`.
-- [ ] **2.** Create `Core/RAG/RAGAnswerService.swift`. Implement `answer(question: String, sessionId: String, userId: String) async throws -> String`.
-- [ ] **3.** Inside `RAGAnswerService.answer()`, chain the four stages: call `RAGRetriever.retrieve()` (Stage 1), call `RAGRetriever.filterConfident()` (Stage 2), if the confident results are empty return a 'no memory found' reply via `tier: .mini`, otherwise call `RAGRetriever.resolveTemporalOrder()` (Stage 3), then build the Stage 4 prompt.
+- [ ] **1.** Add `static func resolveTemporalOrder(_ chunks: [RetrievedChunk]) -> [RetrievedChunk]` to `RAGRetriever.swift`. Sort chunks by `createdAt` ascending (oldest first). Walk the `supersedesId` chain: build a dictionary mapping oldMemoryId → newCleanText. For each chunk whose ID appears as a key in this map, annotate its `cleanText` with the prefix `[OUTDATED → replaced by: newText]` and set `isSuperseded = true`.
+- [ ] **2.** Create `Core/RAG/RAGAnswerService.swift`. Inject `RAGRetriever` (via `AppContainer.makeRAGRetriever()`) + `LLMClientProtocol` + DB access for recent messages. Implement `answer(question: String, sessionId: String, userId: String) async throws -> String`.
+- [ ] **3.** Inside `RAGAnswerService.answer()`, chain the four stages: `try await retriever.retrieve(...)` (Stage 1 instance method), `RAGRetriever.filterConfident(...)` (Stage 2 static), if confident results are empty return a 'no memory found' reply via `tier: .mini`, otherwise `RAGRetriever.resolveTemporalOrder(...)` (Stage 3 static), then build the Stage 4 prompt. Use `RetrievedChunk.representedSessionIds(in:)` when wiring the cross-session badge.
 - [ ] **4.** Load the last 4 messages from the current session from SQLite to include as recent conversation context in the prompt.
 - [ ] **5.** Build the Stage 4 system prompt with explicit instructions to: answer only from provided memories, acknowledge history when decisions changed, note [OUTDATED] memories briefly, and use approximate relative dates like 'back in March' or 'more recently'.
 - [ ] **6.** Format memories for the prompt as numbered list with date prefix: `[1] [Mar 3] Blue T-shirt is in the 3rd drawer`.
@@ -46,3 +46,11 @@ Chat View assistant bubble — the final answer the user reads. For cross-sessio
 ## 📝 Notes
 
 The temporal resolution logic (Stage 3) modifies only the text passed to the LLM prompt — it does NOT modify the SQLite records. The `is_superseded` flag in SQLite is set only by the save pipeline when a new memory explicitly supersedes an old one. Stage 3 simply reads that flag and formats the output accordingly.
+
+**Depends on task 12 as shipped:** `RAGRetriever` is DI-based (`init(llmClient:vectorStore:database:)`), not `static retrieve` / `VectorStore.shared`. Stages 1–2 API:
+
+```swift
+let raw = try await retriever.retrieve(question: question, userId: userId)
+let confident = RAGRetriever.filterConfident(raw)
+let sessions = RetrievedChunk.representedSessionIds(in: confident) // badge count
+```

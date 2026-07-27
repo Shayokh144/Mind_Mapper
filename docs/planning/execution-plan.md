@@ -1965,135 +1965,44 @@ User says: "I moved my passport to the safe, not the drawer anymore"
 
 **Goal:** When the user asks something, retrieve from memory across all sessions and answer accurately.
 
+> **Status (Stages 1–2):** Shipped in task 12 — `Core/RAG/RAGRetriever.swift`, wired via `AppContainer.makeRAGRetriever()`. See `docs/tasks/phase_1/12-rag-retrieval_iOS.md`. Stages 3–4 remain task 13.
+
 ---
 
 ### Step 7.1 — Stage 1: Broad Retrieval (Hybrid Search)
 
-**Input:** User's question
+**Input:** User's question  
 **Output:** All candidate memories from both vector search and structured entity filter
 
-Create `Core/RAG/RAGRetriever.swift`:
+**As shipped** (`Core/RAG/RAGRetriever.swift`):
+
+- `RAGRetriever` is **DI-based** (`llmClient` + `vectorStore` + `database`) — not `VectorStore.shared` / static `retrieve`. Matches `MemoryExtractor` and AGENT.md §8.
+- `RetrievedChunk`: `memoryId`, `cleanText`, `createdAt`, `isSuperseded`, `supersedesId`, `sessionId`, `similarity`, `source` (`"vector"` | `"entity"`).
+- `RetrievedChunk.representedSessionIds(in:)` — distinct session IDs for the “Found across N conversations” badge.
+- Vector path: `embed(tier: .embed)` → `VectorStore.search(topK: 15, threshold: 0.55, userId:)` (filters non-superseded memories for that user).
+- Entity path: `extractEntitiesFromQuestion` via `tier: .nano`, max_tokens 60, up to 4 nouns; SQL `memory_entities.entity_value LIKE '%term%'`; baseline similarity `0.7`. On LLM failure → empty hints (vector-only still works).
+- `RAGRetriever.merge` — de-dupe by `memoryId`, keep **higher** similarity, sort descending.
 
 ```swift
-import Foundation
-import GRDB
-
-struct RetrievedChunk {
-    let memoryId: String
-    let cleanText: String
-    let createdAt: Date
-    let isSuperseded: Bool
-    let supersedesId: String?
-    let sessionId: String
-    let similarity: Float
-    let source: String    // "vector" or "entity"
-}
-
-struct RAGRetriever {
-
-    // Broad hybrid retrieval — vector similarity + entity structured filter
-    static func retrieve(question: String, userId: String) async throws -> [RetrievedChunk] {
-
-        // — Vector search (semantic) —
-        let queryEmbedding = try await LLMClient.shared.embed(text: question)
-        let vectorResults = try await VectorStore.shared.search(
-            queryEmbedding: queryEmbedding,
-            topK: 15,
-            threshold: 0.55
-        )
-
-        // — Entity filter (structured) —
-        // Extract key entities from the question to run SQL filter
-        let entityHints = try await extractEntitiesFromQuestion(question)
-        var entityResults: [RetrievedChunk] = []
-
-        if !entityHints.isEmpty {
-            entityResults = try await DatabaseManager.shared.dbQueue.read { db in
-                var chunks: [RetrievedChunk] = []
-                for hint in entityHints {
-                    let sql = """
-                    SELECT m.*, me.entity_type, me.entity_value
-                    FROM memories m
-                    JOIN memory_entities me ON me.memory_id = m.id
-                    WHERE m.user_id = ? AND me.entity_value LIKE ?
-                    ORDER BY m.created_at DESC
-                    LIMIT 10
-                    """
-                    let rows = try Row.fetchAll(db, sql: sql,
-                        arguments: [userId, "%\(hint.lowercased())%"])
-                    for row in rows {
-                        chunks.append(RetrievedChunk(
-                            memoryId: row["id"],
-                            cleanText: row["clean_text"],
-                            createdAt: row["created_at"],
-                            isSuperseded: row["is_superseded"],
-                            supersedesId: row["supersedes_id"],
-                            sessionId: row["session_id"],
-                            similarity: 0.7,     // entity matches get a baseline score
-                            source: "entity"
-                        ))
-                    }
-                }
-                return chunks
-            }
-        }
-
-        // — Merge and de-duplicate by memoryId —
-        var seen = Set<String>()
-        var merged: [RetrievedChunk] = []
-
-        let allResults = vectorResults.map {
-            RetrievedChunk(memoryId: $0.memoryId, cleanText: $0.cleanText,
-                           createdAt: $0.createdAt, isSuperseded: false,
-                           supersedesId: nil, sessionId: "", similarity: $0.similarity,
-                           source: "vector")
-        } + entityResults
-
-        for chunk in allResults.sorted(by: { $0.similarity > $1.similarity }) {
-            if !seen.contains(chunk.memoryId) {
-                seen.insert(chunk.memoryId)
-                merged.append(chunk)
-            }
-        }
-
-        return merged
-    }
-
-    // Extract searchable entity values from the user's question
-    private static func extractEntitiesFromQuestion(_ question: String) async throws -> [String] {
-        let prompt = """
-        Extract key searchable nouns from this question (people, objects, topics, places).
-        Reply with a JSON array of strings only. Maximum 4 items. No explanation.
-        Example: ["wife", "gift", "passport", "drawer"]
-        Question: "\(question)"
-        """
-        let result = try await LLMClient.shared.complete(
-            model: LLMClient.nano,
-            messages: [LLMMessage(role: "user", content: prompt)],
-            maxTokens: 60,
-            temperature: 0
-        )
-        let clean = result
-            .replacingOccurrences(of: "```json", with: "")
-            .replacingOccurrences(of: "```", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return (try? JSONDecoder().decode([String].self, from: Data(clean.utf8))) ?? []
-    }
-}
+let retriever = container.makeRAGRetriever()
+let raw = try await retriever.retrieve(question: question, userId: userId)
 ```
 
 ---
 
 ### Step 7.2 — Stage 2: Score Filter
 
-**Input:** Retrieved chunks with similarity scores
+**Input:** Retrieved chunks with similarity scores  
 **Output:** Confident chunks only, or "no memory found" signal
 
+**As shipped** (static on `RAGRetriever`):
+
 ```swift
-// Still in RAGRetriever or a separate filter step
-static func filterConfident(_ chunks: [RetrievedChunk],
-                             threshold: Float = 0.62) -> [RetrievedChunk] {
-    // Keep chunks above threshold OR entity-matched chunks (they're exact matches)
+static func filterConfident(
+    _ chunks: [RetrievedChunk],
+    threshold: Float = 0.62
+) -> [RetrievedChunk] {
+    // Keep above threshold OR entity-matched chunks (exact matches bypass threshold)
     chunks.filter { $0.similarity >= threshold || $0.source == "entity" }
 }
 ```
@@ -2145,29 +2054,32 @@ static func resolveTemporalOrder(_ chunks: [RetrievedChunk]) -> [RetrievedChunk]
 **Input:** Resolved, chronological chunks + user question + recent chat history
 **Output:** Final grounded answer
 
-Create `Core/RAG/RAGAnswerService.swift`:
+Create `Core/RAG/RAGAnswerService.swift` (inject `RAGRetriever` — do not call a static `RAGRetriever.retrieve`):
 
 ```swift
 import Foundation
 
 struct RAGAnswerService {
+    private let retriever: RAGRetriever
+    private let llmClient: LLMClientProtocol
+    private let database: DatabaseManager
 
-    static func answer(
+    func answer(
         question: String,
         sessionId: String,
         userId: String
     ) async throws -> String {
 
-        // Stage 1: Broad hybrid retrieval
-        let raw = try await RAGRetriever.retrieve(question: question, userId: userId)
+        // Stage 1: Broad hybrid retrieval (instance method)
+        let raw = try await retriever.retrieve(question: question, userId: userId)
 
         // Stage 2: Score filter
         let confident = RAGRetriever.filterConfident(raw)
 
         // No confident memories found
         if confident.isEmpty {
-            return try await LLMClient.shared.complete(
-                model: LLMClient.mini,
+            return try await llmClient.complete(
+                tier: .mini,
                 messages: [
                     LLMMessage(role: "system", content: "You are a personal memory assistant. You have no stored information about this topic."),
                     LLMMessage(role: "user", content: question)
@@ -2181,15 +2093,15 @@ struct RAGAnswerService {
         let resolved = RAGRetriever.resolveTemporalOrder(confident)
 
         // Load recent chat history (last 4 turns) for conversational context
-        let recentMessages = try await DatabaseManager.shared.dbQueue.read { db in
-            try Message
+        let recentMessages = try await database.dbQueue.read { db in
+            try MessageRecord
                 .filter(Column("session_id") == sessionId)
                 .order(Column("created_at").desc)
                 .limit(4)
                 .fetchAll(db)
                 .reversed()
         }
-
+```
         // Stage 4: Build prompt with all context
         let dateFormatter = DateFormatter()
         dateFormatter.dateStyle = .medium
@@ -2227,8 +2139,8 @@ struct RAGAnswerService {
         messages.append(LLMMessage(role: "user", content: question))
 
         // Stage 4: LLM synthesises answer
-        return try await LLMClient.shared.complete(
-            model: LLMClient.mini,
+        return try await llmClient.complete(
+            tier: .mini,
             messages: messages,
             maxTokens: 400,
             temperature: 0.4
@@ -2236,7 +2148,6 @@ struct RAGAnswerService {
     }
 }
 ```
-
 **✅ Checkpoint:**
 - Store: "Thinking of getting my wife a Chanel perfume" → saved
 - Store: "Actually changed my mind, going with a watch instead of perfume" → saved + supersedes perfume memory marked
@@ -2262,7 +2173,9 @@ struct RAGAnswerService {
 
 ### Step 8.1 — Parallel Execution + Merge
 
-Create `Core/RAG/MixedQueryService.swift`:
+Create `Core/RAG/MixedQueryService.swift`.
+
+> **Note:** Prefer DI (`init(ragAnswerService:llmClient:)`) like shipped `RAGRetriever` — the sketch below still shows static calls for brevity.
 
 ```swift
 import Foundation

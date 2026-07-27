@@ -47,3 +47,5 @@ Chat View — the central hub that drives the entire chat experience. All messag
 ## 📝 Notes
 
 This is the most complex single task in the project. Break it into two sessions: first build and test `MixedQueryService`, then build `ChatViewModel`. Do not attempt both in one sitting. The `async let` pattern for parallel execution in `MixedQueryService` is documented in ../../iOSApp/AGENT.md Section 6.2.
+
+**DI:** Inject `RAGAnswerService` / `QueryMemoryUseCase` (and `RAGRetriever` under the hood via `AppContainer.makeRAGRetriever()`) — do not add new `.shared` statics. Stages 1–2 are already instance-based; keep Stages 3–4 / mixed query consistent.

@@ -2,7 +2,7 @@
 
 MindMapper stores each memory embedding in SQLite as a binary `BLOB`. Integration tests assert that blob is **exactly 6,144 bytes**. This doc explains what that number means and why it was chosen.
 
-**Related code:** `Domain/Models/EmbeddingCodec.swift`, `Domain/Models/Vector.swift`, `Core/VectorStore/VectorStore.swift`, `vectors` table in `V1InitialMigration`  
+**Related code:** `Domain/Models/EmbeddingCodec.swift`, `Domain/Models/Vector.swift`, `Core/VectorStore/VectorStore.swift`, `Domain/Repositories/VectorRepositoryProtocol.swift` (`VectorSearchResult`), `vectors` table in `V1InitialMigration`  
 **Related tasks:** [`06-database-layer_iOS.md`](../tasks/phase_1/06-database-layer_iOS.md), [`11-memory-save-pipeline_iOS.md`](../tasks/phase_1/11-memory-save-pipeline_iOS.md)  
 **Related:** [`switching-llm-provider.md`](./switching-llm-provider.md)
 

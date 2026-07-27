@@ -85,4 +85,12 @@ final class AppContainer: ObservableObject {
             llmClient: LLMClient.shared
         )
     }
+
+    func makeRAGRetriever() -> RAGRetriever {
+        RAGRetriever(
+            llmClient: LLMClient.shared,
+            vectorStore: VectorStore(database: database),
+            database: database
+        )
+    }
 }

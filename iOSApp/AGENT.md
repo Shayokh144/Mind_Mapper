@@ -71,6 +71,8 @@ iOSApp/
 │   ├── Theme/                      ← Color+Theme, Font+Theme, Spacing, Components
 │   ├── Database/                   ← DatabaseManager, migrations
 │   ├── Network/                    ← LLMClient, SupabaseClient wrapper
+│   ├── VectorStore/                ← Cosine similarity over local embedding blobs
+│   ├── RAG/                        ← MemoryExtractor, RAGRetriever (Stages 1–2), …
 │   ├── DI/                         ← AppContainer (dependency injection)
 │   └── Guards/                     ← InputSanitiser, ScopeGuard, RateLimiter
 │
@@ -940,13 +942,22 @@ final class AppContainer: ObservableObject {
     lazy var scopeGuard: ScopeGuardProtocol = ScopeGuard(llmService: llmService)
     lazy var rateLimiter: RateLimiterProtocol = RateLimiter()
 
-    // MARK: — Use Cases (created fresh per use — cheap structs/finals)
+    // MARK: — Use Cases / RAG (created fresh per use — cheap structs/finals)
     func makeSaveMemoryUseCase() -> SaveMemoryUseCaseProtocol {
         SaveMemoryUseCase(
             memoryRepository: memoryRepository,
             vectorRepository: vectorRepository,
-            llmService: llmService,
-            scopeGuard: scopeGuard
+            memoryExtractor: MemoryExtractor(llmClient: LLMClient.shared),
+            llmClient: LLMClient.shared
+        )
+    }
+
+    /// Stage 1–2 hybrid retrieval. Inject into `RAGAnswerService` / `QueryMemoryUseCase` (task 13).
+    func makeRAGRetriever() -> RAGRetriever {
+        RAGRetriever(
+            llmClient: LLMClient.shared,
+            vectorStore: VectorStore(database: database),
+            database: database
         )
     }
 
