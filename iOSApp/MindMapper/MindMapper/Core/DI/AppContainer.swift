@@ -11,6 +11,8 @@ final class AppContainer: ObservableObject {
     let networkReachability: NetworkReachabilityService
     let scopeGuard: ScopeGuardProtocol
     let rateLimiter: RateLimiterProtocol
+    let memoryRepository: MemoryRepositoryProtocol
+    let vectorRepository: VectorRepositoryProtocol
 
     /// Returns `nil` if Supabase URL config is invalid.
     static func make(database: DatabaseManager) -> AppContainer? {
@@ -42,6 +44,8 @@ final class AppContainer: ObservableObject {
         LLMClient.configure(client: supabaseClient)
         self.scopeGuard = ScopeGuard(llmClient: LLMClient.shared)
         self.rateLimiter = RateLimiter()
+        self.memoryRepository = MemoryRepository(database: database)
+        self.vectorRepository = VectorRepository(database: database)
     }
 
     func makeLoginViewModel() -> LoginViewModel {
@@ -71,5 +75,14 @@ final class AppContainer: ObservableObject {
 
     func makeClassifyIntentUseCase() -> ClassifyIntentUseCaseProtocol {
         ClassifyIntentUseCase(llmClient: LLMClient.shared)
+    }
+
+    func makeSaveMemoryUseCase() -> SaveMemoryUseCaseProtocol {
+        SaveMemoryUseCase(
+            memoryRepository: memoryRepository,
+            vectorRepository: vectorRepository,
+            memoryExtractor: MemoryExtractor(llmClient: LLMClient.shared),
+            llmClient: LLMClient.shared
+        )
     }
 }

@@ -8,4 +8,6 @@ protocol LLMClientProtocol: AnyObject {
         maxTokens: Int,
         temperature: Double
     ) async throws -> String
+
+    func embed(text: String, tier: LLMModelTier) async throws -> [Float]
 }

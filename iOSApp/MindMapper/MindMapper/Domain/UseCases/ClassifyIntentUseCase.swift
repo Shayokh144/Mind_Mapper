@@ -6,7 +6,7 @@ protocol ClassifyIntentUseCaseProtocol {
 
 /// Labels a sanitised, in-scope message for Chat Orchestrator routing.
 /// Never touches `DatabaseManager` or vector storage — pure LLM classification.
-final class ClassifyIntentUseCase: ClassifyIntentUseCaseProtocol {
+nonisolated final class ClassifyIntentUseCase: ClassifyIntentUseCaseProtocol, @unchecked Sendable {
     private let llmClient: LLMClientProtocol
 
     init(llmClient: LLMClientProtocol) {
