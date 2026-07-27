@@ -50,5 +50,5 @@ The topK=15 broad net in vector search is intentional — you want to over-retri
 - Static helpers for unit tests: `merge`, `filterConfident`, `RetrievedChunk.representedSessionIds(in:)`.
 - `AppContainer.makeRAGRetriever()` wires production deps.
 - Entity extraction returns `[]` on failure (does not throw) so vector-only retrieval still works.
-- `VectorStore.search` accepts optional `userId`; `VectorSearchResult` includes `sessionId` / supersede fields for chunk mapping.
+- `VectorStore.search` accepts optional `userId` and `includeSuperseded` (RAG retrieve uses `true`; save-time supersede lookup keeps default `false`). `VectorSearchResult` includes `sessionId` / supersede fields for chunk mapping.
 - Tests: `MindMapperTests/RAGRetrieverTests.swift`.

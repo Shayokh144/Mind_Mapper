@@ -20,10 +20,10 @@ nonisolated struct RetrievedChunk: Equatable, Sendable {
     }
 }
 
-/// Stage 1 (hybrid retrieval) + Stage 2 (confidence filter) of the RAG pipeline.
+/// Stage 1–3 of the RAG pipeline (hybrid retrieval, confidence filter, temporal resolution).
 ///
 /// Injected dependencies (not `.shared` statics) so tests can mock the LLM and use
-/// an in-memory database. Pure merge/filter helpers stay static for unit tests.
+/// an in-memory database. Pure merge/filter/temporal helpers stay static for unit tests.
 nonisolated struct RAGRetriever: @unchecked Sendable {
     private let llmClient: LLMClientProtocol
     private let vectorStore: VectorStore
@@ -59,7 +59,8 @@ nonisolated struct RAGRetriever: @unchecked Sendable {
             queryEmbedding: queryEmbedding,
             topK: Self.vectorTopK,
             threshold: Self.vectorThreshold,
-            userId: userId
+            userId: userId,
+            includeSuperseded: true
         )
         async let entityTask = searchByEntities(hints: entityHints, userId: userId)
 
@@ -76,6 +77,34 @@ nonisolated struct RAGRetriever: @unchecked Sendable {
         threshold: Float = RAGRetriever.defaultConfidenceThreshold
     ) -> [RetrievedChunk] {
         chunks.filter { $0.similarity >= threshold || $0.source == "entity" }
+    }
+
+    // MARK: - Stage 3
+
+    /// Chronological order + annotate memories that were later superseded (prompt-only; does not write SQLite).
+    static func resolveTemporalOrder(_ chunks: [RetrievedChunk]) -> [RetrievedChunk] {
+        let sorted = chunks.sorted { $0.createdAt < $1.createdAt }
+
+        var supersededBy: [String: String] = [:]
+        for chunk in sorted {
+            if let oldId = chunk.supersedesId {
+                supersededBy[oldId] = chunk.cleanText
+            }
+        }
+
+        return sorted.map { chunk in
+            guard let newText = supersededBy[chunk.memoryId] else { return chunk }
+            return RetrievedChunk(
+                memoryId: chunk.memoryId,
+                cleanText: "[OUTDATED → replaced by: \(newText)] \(chunk.cleanText)",
+                createdAt: chunk.createdAt,
+                isSuperseded: true,
+                supersedesId: chunk.supersedesId,
+                sessionId: chunk.sessionId,
+                similarity: chunk.similarity,
+                source: chunk.source
+            )
+        }
     }
 
     /// De-duplicate by `memoryId`, keeping the higher similarity score.

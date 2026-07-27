@@ -93,4 +93,16 @@ final class AppContainer: ObservableObject {
             database: database
         )
     }
+
+    func makeRAGAnswerService() -> RAGAnswerServiceProtocol {
+        RAGAnswerService(
+            retriever: makeRAGRetriever(),
+            llmClient: LLMClient.shared,
+            database: database
+        )
+    }
+
+    func makeQueryMemoryUseCase() -> QueryMemoryUseCaseProtocol {
+        QueryMemoryUseCase(answerService: makeRAGAnswerService())
+    }
 }

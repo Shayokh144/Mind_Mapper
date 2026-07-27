@@ -50,3 +50,5 @@ Screens 3 and 4 in the UI mockup — Chat View in light and dark mode. Shows: na
 ## 📝 Notes
 
 The `ChatBubble` component from the theme system (Task 5) handles all bubble styling. Do not re-implement bubble styles in this view. The `ThemeTextField` from the theme system handles the 500-character limit automatically — do not add a second limit check here. The typing indicator animation should use `withAnimation(.easeInOut(duration: 0.5).repeatForever())` on the dot opacity.
+
+**Badge data:** `viewModel.lastAnswerSessionCount` comes from `RAGAnswer.representedSessionIds.count` set in `ChatViewModel` after QUERY/MIXED (task 14). Do not recompute session IDs in the view.

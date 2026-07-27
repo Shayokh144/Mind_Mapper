@@ -1965,7 +1965,7 @@ User says: "I moved my passport to the safe, not the drawer anymore"
 
 **Goal:** When the user asks something, retrieve from memory across all sessions and answer accurately.
 
-> **Status (Stages 1–2):** Shipped in task 12 — `Core/RAG/RAGRetriever.swift`, wired via `AppContainer.makeRAGRetriever()`. See `docs/tasks/phase_1/12-rag-retrieval_iOS.md`. Stages 3–4 remain task 13.
+> **Status (Stages 1–4):** Stages 1–2 shipped in task 12; Stages 3–4 shipped in task 13 — `RAGAnswerService` + `QueryMemoryUseCase`, wired via `AppContainer.makeQueryMemoryUseCase()`. See `docs/tasks/phase_1/12-rag-retrieval_iOS.md` and `13-rag-synthesis_iOS.md`.
 
 ---
 
@@ -2011,143 +2011,42 @@ static func filterConfident(
 
 ### Step 7.3 — Stage 3: Temporal Resolution
 
-**Input:** Raw retrieved chunks
-**Output:** Chronologically sorted list with superseding relationships resolved
+**Input:** Confident retrieved chunks  
+**Output:** Chronologically sorted list with superseding relationships annotated for the LLM prompt
+
+**As shipped** (static on `RAGRetriever` — prompt-only; does **not** write SQLite):
 
 ```swift
-static func resolveTemporalOrder(_ chunks: [RetrievedChunk]) -> [RetrievedChunk] {
-    // Sort by createdAt ascending (oldest first → newest last)
-    let sorted = chunks.sorted { $0.createdAt < $1.createdAt }
-
-    // Build supersedes map: oldId → newText
-    var supersededBy: [String: String] = [:]
-    for chunk in sorted {
-        if let oldId = chunk.supersedesId {
-            supersededBy[oldId] = chunk.cleanText
-        }
-    }
-
-    // Annotate superseded memories so LLM knows they were changed
-    return sorted.map { chunk in
-        if let newText = supersededBy[chunk.memoryId] {
-            // Mark as outdated — the LLM prompt will handle this
-            return RetrievedChunk(
-                memoryId: chunk.memoryId,
-                cleanText: "[OUTDATED → replaced by: \(newText)] \(chunk.cleanText)",
-                createdAt: chunk.createdAt,
-                isSuperseded: true,
-                supersedesId: chunk.supersedesId,
-                sessionId: chunk.sessionId,
-                similarity: chunk.similarity,
-                source: chunk.source
-            )
-        }
-        return chunk
-    }
-}
+static func resolveTemporalOrder(_ chunks: [RetrievedChunk]) -> [RetrievedChunk]
+// oldest → newest; maps supersedesId → new cleanText;
+// annotates matched old rows: "[OUTDATED → replaced by: …] …"
 ```
+
+RAG vector search passes `includeSuperseded: true` so outdated rows can appear for annotation. Save-time supersede lookup still uses the default `includeSuperseded: false`.
 
 ---
 
 ### Step 7.4 — Stage 4: LLM Synthesis
 
-**Input:** Resolved, chronological chunks + user question + recent chat history
-**Output:** Final grounded answer
+**Input:** Resolved, chronological chunks + user question + recent chat history  
+**Output:** `RAGAnswer(text:representedSessionIds:)`
 
-Create `Core/RAG/RAGAnswerService.swift` (inject `RAGRetriever` — do not call a static `RAGRetriever.retrieve`):
+**As shipped** (`Core/RAG/RAGAnswerService.swift` + `Domain/UseCases/QueryMemoryUseCase.swift`):
+
+- DI: `RAGRetriever` + `LLMClientProtocol` + `DatabaseManager` (via `AppContainer.makeRAGAnswerService()` / `makeQueryMemoryUseCase()`).
+- Chain: `retrieve` → `filterConfident` → empty? graceful no-memory (`tier: .mini`, max 150) → else `resolveTemporalOrder` → format memories as `[1] [Mar 3] …` → last 4 session messages → `complete(tier: .mini, maxTokens: 400, temperature: 0.4)`.
+- `representedSessionIds` from confident chunks drives the “Found across N conversations” badge (Chat UI task 18).
 
 ```swift
-import Foundation
-
-struct RAGAnswerService {
-    private let retriever: RAGRetriever
-    private let llmClient: LLMClientProtocol
-    private let database: DatabaseManager
-
-    func answer(
-        question: String,
-        sessionId: String,
-        userId: String
-    ) async throws -> String {
-
-        // Stage 1: Broad hybrid retrieval (instance method)
-        let raw = try await retriever.retrieve(question: question, userId: userId)
-
-        // Stage 2: Score filter
-        let confident = RAGRetriever.filterConfident(raw)
-
-        // No confident memories found
-        if confident.isEmpty {
-            return try await llmClient.complete(
-                tier: .mini,
-                messages: [
-                    LLMMessage(role: "system", content: "You are a personal memory assistant. You have no stored information about this topic."),
-                    LLMMessage(role: "user", content: question)
-                ],
-                maxTokens: 150,
-                temperature: 0.5
-            )
-        }
-
-        // Stage 3: Temporal resolution
-        let resolved = RAGRetriever.resolveTemporalOrder(confident)
-
-        // Load recent chat history (last 4 turns) for conversational context
-        let recentMessages = try await database.dbQueue.read { db in
-            try MessageRecord
-                .filter(Column("session_id") == sessionId)
-                .order(Column("created_at").desc)
-                .limit(4)
-                .fetchAll(db)
-                .reversed()
-        }
+let answer = try await queryMemoryUseCase.execute(
+    question: question, sessionId: sessionId, userId: userId
+)
+// answer.text — assistant bubble
+// answer.representedSessionIds.count — badge when > 1
 ```
-        // Stage 4: Build prompt with all context
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
 
-        let memoriesText = resolved.enumerated().map { (i, chunk) in
-            "[\(i+1)] [\(dateFormatter.string(from: chunk.createdAt))] \(chunk.cleanText)"
-        }.joined(separator: "\n")
+Tests: `MindMapperTests/RAGAnswerServiceTests.swift`.
 
-        let systemPrompt = """
-        You are a personal memory assistant. Answer ONLY from the provided memories.
-        Do not guess or add information not in the memories.
-
-        If multiple memories show the same topic evolving over time:
-        - Acknowledge the history ("You originally thought X...")
-        - Clearly state what the current/latest decision is
-        - If a memory is marked [OUTDATED], it was later replaced — mention it briefly
-
-        If memories are from different time periods, say roughly when
-        (e.g. "back in March", "more recently", "a few weeks ago").
-        """
-
-        var messages: [LLMMessage] = [
-            LLMMessage(role: "system", content: systemPrompt),
-            LLMMessage(role: "user", content: """
-            Retrieved memories (chronological, oldest first):
-            \(memoriesText)
-            """)
-        ]
-
-        // Add recent conversation history
-        for msg in recentMessages {
-            messages.append(LLMMessage(role: msg.role, content: msg.content))
-        }
-
-        messages.append(LLMMessage(role: "user", content: question))
-
-        // Stage 4: LLM synthesises answer
-        return try await llmClient.complete(
-            tier: .mini,
-            messages: messages,
-            maxTokens: 400,
-            temperature: 0.4
-        )
-    }
-}
-```
 **✅ Checkpoint:**
 - Store: "Thinking of getting my wife a Chanel perfume" → saved
 - Store: "Actually changed my mind, going with a watch instead of perfume" → saved + supersedes perfume memory marked
@@ -2156,7 +2055,6 @@ struct RAGAnswerService {
 - Ask again → answer now includes all three, noting the timeline
 
 ---
-
 ## Phase 8 — Mixed Query Pipeline (MIXED intent)
 ⏱️ **Estimated time: 3–4 hours**
 
@@ -2175,7 +2073,7 @@ struct RAGAnswerService {
 
 Create `Core/RAG/MixedQueryService.swift`.
 
-> **Note:** Prefer DI (`init(ragAnswerService:llmClient:)`) like shipped `RAGRetriever` — the sketch below still shows static calls for brevity.
+> **Note:** Prefer DI (`init(ragAnswerService:llmClient:)`). Memory path returns `RAGAnswer` — merge on `memoryAnswer.text` and keep `representedSessionIds` for the cross-session badge. The sketch below still shows static calls for brevity.
 
 ```swift
 import Foundation

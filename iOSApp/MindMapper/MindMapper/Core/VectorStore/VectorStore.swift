@@ -28,12 +28,16 @@ nonisolated struct VectorStore: Sendable {
         queryEmbedding: [Float],
         topK: Int = 15,
         threshold: Float = 0.55,
-        userId: String? = nil
+        userId: String? = nil,
+        includeSuperseded: Bool = false
     ) async throws -> [VectorSearchResult] {
         let pairs: [(embedding: Data, memory: Memory)]
         do {
             pairs = try await database.dbQueue.read { db in
-                var memoryQuery = MemoryRecord.filter(Column("is_superseded") == false)
+                var memoryQuery = MemoryRecord.all()
+                if !includeSuperseded {
+                    memoryQuery = memoryQuery.filter(Column("is_superseded") == false)
+                }
                 if let userId {
                     memoryQuery = memoryQuery.filter(Column("user_id") == userId)
                 }

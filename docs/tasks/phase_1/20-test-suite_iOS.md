@@ -33,7 +33,7 @@ None — pure testing. Validates all UI scenarios from the mockup work correctly
 - [ ] **10.** Test scenario 9: Trigger 5 consecutive scope blocks → verify rate limiter cooldown activates.
 - [ ] **11.** Test scenario 10: Close the chat view → verify session title, tag, and summary appear in session list within a few seconds.
 - [ ] **12.** Test scenario 11: Tap an old session from the list → verify full message history loads correctly.
-- [ ] **13.** Write XCTest unit tests for: `InputSanitiser` (all block conditions), `RateLimiter` (cooldown trigger), `LLMClient` (primary succeeds; primary rate-limit triggers fallback; both fail throws `llmCallFailed`), `SaveMemoryUseCase` (mock LLM + repo), `QueryMemoryUseCase` (mock retriever), `DeleteSessionUseCase` (deletion order), `CloseSessionUseCase` (title/summary generation with mocks). Achieve at minimum 70% coverage of the Domain layer.
+- [ ] **13.** Write XCTest unit tests for: `InputSanitiser` (all block conditions), `RateLimiter` (cooldown trigger), `LLMClient` (primary succeeds; primary rate-limit triggers fallback; both fail throws `llmCallFailed`), `SaveMemoryUseCase` (mock LLM + repo), `QueryMemoryUseCase` / `RAGAnswerService` (already covered in `RAGAnswerServiceTests` — extend if needed), `DeleteSessionUseCase` (deletion order), `CloseSessionUseCase` (title/summary generation with mocks). Achieve at minimum 70% coverage of the Domain layer.
 - [ ] **14.** Fix all bugs found during the manual test run before proceeding to Task 21.
 
 ---

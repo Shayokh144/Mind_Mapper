@@ -72,7 +72,8 @@ iOSApp/
 │   ├── Database/                   ← DatabaseManager, migrations
 │   ├── Network/                    ← LLMClient, SupabaseClient wrapper
 │   ├── VectorStore/                ← Cosine similarity over local embedding blobs
-│   ├── RAG/                        ← MemoryExtractor, RAGRetriever (Stages 1–2), …
+│   ├── RAG/                        ← MemoryExtractor, RAGRetriever, RAGAnswerService, …
+
 │   ├── DI/                         ← AppContainer (dependency injection)
 │   └── Guards/                     ← InputSanitiser, ScopeGuard, RateLimiter
 │
@@ -952,7 +953,7 @@ final class AppContainer: ObservableObject {
         )
     }
 
-    /// Stage 1–2 hybrid retrieval. Inject into `RAGAnswerService` / `QueryMemoryUseCase` (task 13).
+    /// Stage 1–3 hybrid retrieval + temporal helpers. Inject into `RAGAnswerService`.
     func makeRAGRetriever() -> RAGRetriever {
         RAGRetriever(
             llmClient: LLMClient.shared,
@@ -961,12 +962,16 @@ final class AppContainer: ObservableObject {
         )
     }
 
-    func makeQueryMemoryUseCase() -> QueryMemoryUseCaseProtocol {
-        QueryMemoryUseCase(
-            memoryRepository: memoryRepository,
-            vectorRepository: vectorRepository,
-            llmService: llmService
+    func makeRAGAnswerService() -> RAGAnswerServiceProtocol {
+        RAGAnswerService(
+            retriever: makeRAGRetriever(),
+            llmClient: LLMClient.shared,
+            database: database
         )
+    }
+
+    func makeQueryMemoryUseCase() -> QueryMemoryUseCaseProtocol {
+        QueryMemoryUseCase(answerService: makeRAGAnswerService())
     }
 
     // MARK: — ViewModels (always created fresh per screen)
