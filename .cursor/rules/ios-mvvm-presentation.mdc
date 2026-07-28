@@ -16,6 +16,11 @@ Views only render state and forward actions to the ViewModel.
 // ✅
 struct ChatView: View {
     @StateObject private var viewModel: ChatViewModel
+
+    init(viewModel: ChatViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
+
     var body: some View {
         ScrollView { /* read viewModel.* */ }
             .task { await viewModel.loadSession() } // prefer .task over Task in onAppear
@@ -26,9 +31,10 @@ struct ChatView: View {
 ```
 
 - Local UI only: `@State`, `@FocusState`
-- Screen data: `@StateObject` / `@ObservedObject` ViewModel
+- Screen ViewModel: **`@StateObject`** — single source of truth ([Apple](https://developer.apple.com/documentation/swiftui/stateobject)); DI via `_viewModel = StateObject(wrappedValue:)`
+- Child that only observes a parent-owned object: `@ObservedObject` / `@EnvironmentObject`
 - App-wide: `@EnvironmentObject` (`AppRouter`, `AppContainer`)
-- Own ViewModel you create → `@StateObject`; ViewModel passed in → `@ObservedObject`
+- Different `sessionId` / identity → `.id(...)` so `@StateObject` reinits
 
 ## ViewModels
 
@@ -59,3 +65,7 @@ final class ChatViewModel: ObservableObject {
 - Dependencies only via `init` — never `SomeThing()` inside the VM
 - Convert domain → display models in the ViewModel (formatted strings, icons, theme colors)
 - Navigate with `router.navigate(to:)` — not `NavigationLink` destinations in list rows
+
+## UI composition
+
+Feature screens **compose** `Core/Theme/Components` (e.g. one `ChatBubble` for user + assistant via `isUser`). Do not restyle with raw colors in Features. See `ios-ui-components.mdc` and `docs/design/theme-guide.md`.

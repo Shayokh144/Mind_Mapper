@@ -2,9 +2,15 @@ import Foundation
 import SwiftUI
 import Combine
 
-/// Typed navigation source of truth for `NavigationStack` (expanded in task 16).
+/// Typed navigation source of truth for `NavigationStack` + tab selection.
 @MainActor
 final class AppRouter: ObservableObject {
+    enum Tab: Hashable {
+        case chats
+        case memories
+        case settings
+    }
+
     enum Destination: Hashable {
         case chat(sessionId: String)
         case memoryList(sessionId: String)
@@ -25,6 +31,7 @@ final class AppRouter: ObservableObject {
         }
     }
 
+    @Published var selectedTab: Tab = .chats
     @Published var path = NavigationPath()
     @Published var presentedSheet: Sheet?
 
@@ -41,6 +48,13 @@ final class AppRouter: ObservableObject {
         path = NavigationPath()
     }
 
+    /// Switch to Chats, clear the stack, then push chat (notification / deep link).
+    func openChat(sessionId: String) {
+        selectedTab = .chats
+        navigateToRoot()
+        navigate(to: .chat(sessionId: sessionId))
+    }
+
     func present(_ sheet: Sheet) {
         presentedSheet = sheet
     }
@@ -48,4 +62,15 @@ final class AppRouter: ObservableObject {
     func dismissSheet() {
         presentedSheet = nil
     }
+}
+
+extension Notification.Name {
+    /// Posted by the notification delegate (task 20) when the user taps a memory reminder.
+    /// Prefer `userInfo["session_id"]`, or `userInfo["memory_id"]` / `object` as a memory id to resolve.
+    static let openMemory = Notification.Name("com.mindmapper.openMemory")
+}
+
+enum OpenMemoryUserInfoKey {
+    static let sessionId = "session_id"
+    static let memoryId = "memory_id"
 }

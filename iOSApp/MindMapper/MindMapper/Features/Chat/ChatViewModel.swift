@@ -247,9 +247,9 @@ final class ChatViewModel: ObservableObject {
 
     private func mapError(_ error: Error) -> String {
         if let appError = error as? AppError {
-            return appError.errorDescription ?? "Something went wrong. Please try again."
+            return appError.errorDescription ?? L10n.Error.generic
         }
         return AppError.llmCallFailed(underlying: error).errorDescription
-            ?? "Something went wrong. Please try again."
+            ?? L10n.Error.generic
     }
 }

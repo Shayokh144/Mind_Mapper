@@ -13,15 +13,15 @@ struct InputSanitiser {
 
     static func process(_ raw: String) -> SanitiseResult {
         if raw.count > maxCharacters {
-            return .blocked("Please keep messages under 500 characters.")
+            return .blocked(L10n.Error.inputTooLong)
         }
 
         if containsCodeSignal(raw) {
-            return .blocked("This app is for personal memories, not code.")
+            return .blocked(L10n.Guard.codeBlocked)
         }
 
         if containsURLOrPath(raw) {
-            return .blocked("I can only store personal notes and facts.")
+            return .blocked(L10n.Guard.notesOnly)
         }
 
         let cleaned = stripInjectionPhrases(raw)

@@ -15,9 +15,9 @@ struct MindMapperApp: App {
         if let database, let container = AppContainer.make(database: database) {
             AppRootHost(container: container)
         } else if database == nil {
-            bootFailureMessage("Couldn't open local storage. Please reinstall the app.")
+            bootFailureMessage(L10n.Boot.storageFailed)
         } else {
-            bootFailureMessage("Couldn't configure the backend. Please reinstall the app.")
+            bootFailureMessage(L10n.Boot.configFailed)
         }
     }
 
@@ -31,14 +31,16 @@ struct MindMapperApp: App {
     }
 }
 
-/// Owns `AppContainer` for the lifetime of a successful database + config open.
+/// Owns `AppContainer` + `AppRouter` for the lifetime of a successful database + config open.
 private struct AppRootHost: View {
     @StateObject private var container: AppContainer
+    @StateObject private var router: AppRouter
     @ObservedObject private var authManager: AuthManager
     @ObservedObject private var networkReachability: NetworkReachabilityService
 
     init(container: AppContainer) {
         _container = StateObject(wrappedValue: container)
+        _router = StateObject(wrappedValue: AppRouter())
         _authManager = ObservedObject(wrappedValue: container.authManager)
         _networkReachability = ObservedObject(wrappedValue: container.networkReachability)
     }
@@ -50,12 +52,13 @@ private struct AppRootHost: View {
             } else if authManager.pendingPasswordReset {
                 SetNewPasswordView(viewModel: container.makeSetNewPasswordViewModel())
             } else if authManager.isAuthenticated {
-                RootView(viewModel: container.makeRootViewModel())
+                RootView()
             } else {
                 OnboardingView()
             }
         }
         .environmentObject(container)
+        .environmentObject(router)
         .environmentObject(authManager)
         .animation(.easeInOut, value: authManager.isAuthenticated)
         .animation(.easeInOut, value: authManager.pendingPasswordReset)
@@ -76,7 +79,7 @@ private struct AppRootHost: View {
         .overlay(alignment: .top) {
             if networkReachability.status == .disconnected {
                 ThemeBadge(
-                    text: AppError.noInternet.errorDescription ?? "You're offline.",
+                    text: AppError.noInternet.errorDescription ?? L10n.Boot.offlineBanner,
                     icon: "wifi.slash",
                     role: .warning
                 )

@@ -12,15 +12,15 @@ struct SetNewPasswordView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
-                    Text("Choose a new password")
+                    Text(L10n.Auth.chooseNewPassword)
                         .titleStyle()
 
-                    Text("Enter a new password for your account.")
+                    Text(L10n.Auth.chooseNewPasswordSubtitle)
                         .secondaryStyle()
 
                     ThemeTextField(
                         text: $viewModel.password,
-                        placeholder: "New password",
+                        placeholder: L10n.Auth.newPassword,
                         maxLength: 128,
                         isSecure: true
                     )
@@ -28,7 +28,7 @@ struct SetNewPasswordView: View {
 
                     ThemeTextField(
                         text: $viewModel.confirmPassword,
-                        placeholder: "Confirm password",
+                        placeholder: L10n.Auth.confirmPassword,
                         maxLength: 128,
                         isSecure: true
                     )
@@ -39,7 +39,7 @@ struct SetNewPasswordView: View {
                     }
 
                     PrimaryButton(
-                        title: "Update password",
+                        title: L10n.Auth.updatePassword,
                         isLoading: viewModel.isLoading,
                         isEnabled: viewModel.canSubmit
                     ) {
@@ -49,7 +49,7 @@ struct SetNewPasswordView: View {
                 .padding(Spacing.xl)
             }
             .background(Color.theme.background.ignoresSafeArea())
-            .navigationTitle("Reset password")
+            .navigationTitle(L10n.Auth.resetPassword)
             .task(id: submitRequestID) {
                 guard submitRequestID > 0 else { return }
                 await viewModel.submit()

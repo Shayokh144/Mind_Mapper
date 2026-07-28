@@ -75,6 +75,7 @@ iOSApp/
 │   ├── RAG/                        ← MemoryExtractor, RAGRetriever, RAGAnswerService, MixedQueryService
 │   ├── Navigation/                 ← AppRouter (NavigationStack path + sheets)
 │   ├── Lifecycle/                  ← AppLifecycleListener (session close on background)
+│   ├── Localization/               ← L10n typed accessors for Localizable.xcstrings
 │   ├── DI/                         ← AppContainer (dependency injection)
 │   └── Guards/                     ← InputSanitiser, ScopeGuard, RateLimiter
 │
@@ -126,6 +127,7 @@ iOSApp/
 │
 └── Resources/
     ├── Assets.xcassets
+    ├── Localizable.xcstrings       ← English String Catalog (add locales later)
     └── Info.plist
 ```
 
@@ -143,9 +145,15 @@ iOSApp/
 A View is responsible for **one thing only: rendering state**. It reads from its ViewModel and sends user actions back to it. Nothing else.
 
 ```swift
-// ✅ Correct — View is thin
+// ✅ Correct — View is thin; screen owns its ViewModel via @StateObject
+// https://developer.apple.com/documentation/swiftui/stateobject
 struct ChatView: View {
     @StateObject private var viewModel: ChatViewModel
+
+    /// Factory builds the VM; this view takes ownership (not ObservedObject).
+    init(viewModel: ChatViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
 
     var body: some View {
         ScrollView {
@@ -153,9 +161,7 @@ struct ChatView: View {
                 ChatBubble(text: message.content, isUser: message.isUser)
             }
         }
-        .onAppear {
-            Task { await viewModel.loadSession() }
-        }
+        .task { await viewModel.loadSession() }
     }
 }
 ```
@@ -1012,7 +1018,7 @@ final class AppContainer: ObservableObject {
         )
     }
 
-    // SessionListViewModel lands in task 17 — factory stub omitted here.
+    // makeSessionListViewModel(router:) / makeSettingsViewModel() — see AppContainer.swift
 }
 ```
 
@@ -1066,10 +1072,12 @@ struct ChatView: View {
 | State type | Where it lives | Example |
 |---|---|---|
 | Local UI state | `@State` in View | Input text, sheet presented, keyboard focus |
-| Shared UI state | `@StateObject` / `@ObservedObject` | ViewModel |
+| Shared UI state | `@StateObject` (owner) / `@ObservedObject` (child observer) | Screen ViewModel |
 | App-wide state | `@EnvironmentObject` | AppRouter, AppContainer, AuthManager |
 | Persistent state | Database / UserDefaults | Messages, memories, user preferences |
 | Server state | Repository + ViewModel | Session list, memory list |
+
+**ViewModel ownership (Apple `StateObject`):** the screen that is the single source of truth uses `@StateObject`. With DI, take ownership in `init` via `_viewModel = StateObject(wrappedValue:)` — even though the factory created the instance. Use `@ObservedObject` only when a **parent** already owns the object and a child merely observes it. When `sessionId` (or similar identity) changes, apply `.id(sessionId)` so SwiftUI recreates the `StateObject`.
 
 ```swift
 struct ChatView: View {
@@ -1077,11 +1085,15 @@ struct ChatView: View {
     @State private var isKeyboardVisible = false
     @FocusState private var inputFocused: Bool
 
-    // ✅ ViewModel — owns the screen's data state
+    // ✅ ViewModel — this screen owns the data state
     @StateObject private var viewModel: ChatViewModel
 
     // ✅ App-wide — injected from environment
     @EnvironmentObject private var router: AppRouter
+
+    init(viewModel: ChatViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
 }
 ```
 
@@ -1350,8 +1362,9 @@ These are the most common mistakes. Treat each as a hard rule.
 | Call `LLMClient.shared` from a View | Call a use case from the ViewModel |
 | Pass raw model name strings (`"gemini-2.0-flash"`) in use cases | Use `LLMClient.complete(tier: .nano)` — fallback is automatic |
 | Call `DatabaseManager.shared` from a ViewModel | Call a repository method |
-| Use `@ObservedObject` for a ViewModel you create | Use `@StateObject` |
-| Use `@StateObject` for a ViewModel passed in | Use `@ObservedObject` |
+| Use `@ObservedObject` for a ViewModel the **screen owns** | Use `@StateObject` (Apple: single source of truth) |
+| Use `@StateObject` for a ViewModel a **parent already owns** and only shares | Use `@ObservedObject` or `@EnvironmentObject` |
+| Hardcode user-visible English in Views / `AppError` | Add a key to `Localizable.xcstrings` + `L10n.*` |
 | Hardcode `Color(hex: "#3478F6")` in a View | Use `Color.theme.accent` |
 | Use `DispatchQueue.main.async` | Use `@MainActor` |
 | Use `NavigationView` | Use `NavigationStack` |

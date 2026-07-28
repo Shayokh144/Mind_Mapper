@@ -19,8 +19,8 @@ struct SessionRestoreView: View {
                 .accessibilityHidden(true)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Mind Mapper")
-        .accessibilityValue("Loading")
+        .accessibilityLabel(L10n.Brand.name)
+        .accessibilityValue(L10n.Common.loading)
         .onAppear {
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
                 isRotating = true

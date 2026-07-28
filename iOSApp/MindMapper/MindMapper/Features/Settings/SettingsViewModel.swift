@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 @MainActor
-final class RootViewModel: ObservableObject {
+final class SettingsViewModel: ObservableObject {
     @Published private(set) var isSigningOut = false
     @Published private(set) var errorMessage: String?
 

@@ -32,6 +32,7 @@ View → ViewModel → UseCase → Repository → DB/API
 - No `.shared` singletons inside ViewModels or Use Cases — inject via `init`
 - No raw LLM model strings — use `LLMClient.complete(tier:)`
 - No hardcoded colors/fonts — use `Color.theme.*` / `Font.theme.*` (`docs/design/theme-guide.md`)
+- Reusable configurable components in `Core/Theme/Components/` — one bubble/button for variants (`ios-ui-components.mdc`)
 - No `NavigationView` — use `NavigationStack` + `AppRouter`
 - No `DispatchQueue.main.async` — use `@MainActor`
 - No force unwraps / `try!` / `as!` — use `do/catch` or `guard` and log with `AppLogger` (`NSLog` today; Sentry later per `docs/pre-release-checklist.md`)

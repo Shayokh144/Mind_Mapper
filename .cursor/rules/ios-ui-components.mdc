@@ -1,0 +1,70 @@
+---
+description: Reusable themeable SwiftUI components — one component, configurable roles
+globs: iOSApp/**/{Features,Core/Theme}/**/*.swift
+alwaysApply: false
+---
+
+# Reusable UI Components
+
+Source of truth: `docs/design/theme-guide.md`, `Core/Theme/Components/`.
+
+When building screens (chat, session list, settings, …), **compose shared components** — do not invent one-off styled views per screen or per message role.
+
+## Hard rules
+
+1. **One component, many configurations** — same shape for variants; pass a role / style / flag (e.g. `isUser`, `role: .accent`). Do **not** create `UserChatBubble` + `AssistantChatBubble`.
+2. **Theme tokens only** — `Color.theme.*`, `Font.theme.*`, `Spacing.*`, `Radius.*`. Never raw hex, `Color.blue`, or `.font(.system(size:))` in Features or Components.
+3. **Live in `Core/Theme/Components/`** — shared chrome (bubbles, buttons, fields, badges, cards). Feature screens only layout + wire ViewModel state into those components.
+4. **Style changes stay in one place** — changing accent / surface / body font must update every consumer without editing Feature files.
+5. **Copy via `L10n`** — user-visible strings use `L10n.*`, not English literals (see `Core/Localization/`).
+
+## Canonical pattern — ChatBubble
+
+User and assistant messages share **one** bubble; configuration drives look:
+
+```swift
+// ✅ Core/Theme/Components/ChatBubble.swift
+struct ChatBubble: View {
+    let text: String
+    let isUser: Bool
+
+    var body: some View {
+        Text(text)
+            .font(.theme.body)
+            .foregroundStyle(isUser ? Color.theme.onAccent : Color.theme.textPrimary)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.md)
+            .background(isUser ? Color.theme.accent : Color.theme.surface)
+            // clip / alignment from isUser …
+    }
+}
+
+// ✅ Features/Chat/ChatView.swift — compose, don't restyle
+ForEach(viewModel.messages) { message in
+    ChatBubble(text: message.content, isUser: message.isUser)
+}
+```
+
+```swift
+// ❌ Duplicate components / hardcoded colors in the feature
+struct UserMessageView: View { /* blue #3478F6 … */ }
+struct BotMessageView: View { /* gray … */ }
+```
+
+Same idea for buttons (`PrimaryButton` / `SecondaryButton`), badges (`ThemeBadge` + `role`), text fields (`ThemeTextField`), cards (`ThemeCard`).
+
+## When adding UI
+
+| Do | Don't |
+|---|---|
+| Extend or parameterize an existing theme component | Copy-paste padding/colors into `ChatView` / list rows |
+| Add a `role` / `isUser` / style enum if a new variant appears | Fork a second nearly identical view |
+| Put new shared chrome under `Core/Theme/Components/` | Bury reusable styling inside one Feature folder |
+| Preview light + dark on the component | Only preview the full screen |
+
+## Checklist before finishing a UI task
+
+- [ ] Message / row / button variants share one component API
+- [ ] Colors/fonts/spacing come from theme tokens
+- [ ] Tweaking `Color.theme.accent` (or surface/body) visibly updates the new UI without Feature edits
+- [ ] No parallel “user vs app” view types that only differ by color

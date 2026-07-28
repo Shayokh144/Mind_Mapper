@@ -34,7 +34,7 @@ enum AppError: LocalizedError {
             ?? authErrorDescription
             ?? dataErrorDescription
             ?? llmErrorDescription
-            ?? "Something went wrong. Please try again."
+            ?? L10n.Error.generic
     }
 
     var isRetryable: Bool {
@@ -51,11 +51,11 @@ enum AppError: LocalizedError {
     private var inputErrorDescription: String? {
         switch self {
         case .inputTooLong:
-            return "Please keep messages under 500 characters."
+            return L10n.Error.inputTooLong
         case .inputOutOfScope(let reason):
             return reason
         case .rateLimitExceeded(let seconds):
-            return "Please wait \(Int(seconds)) seconds before sending another message."
+            return L10n.Error.rateLimit(seconds: Int(seconds))
         default:
             return nil
         }
@@ -64,25 +64,25 @@ enum AppError: LocalizedError {
     private var authErrorDescription: String? {
         switch self {
         case .notAuthenticated:
-            return "Please sign in to continue."
+            return L10n.Error.notAuthenticated
         case .sessionExpired:
-            return "Your session expired. Please sign in again."
+            return L10n.Error.sessionExpired
         case .invalidCredentials:
-            return "Incorrect email or password."
+            return L10n.Error.invalidCredentials
         case .emailConfirmationRequired:
-            return "Check your email to confirm your account, then sign in."
+            return L10n.Error.emailConfirmation
         case .passwordResetEmailSent:
-            return "If an account exists for that email, we sent a reset link."
+            return L10n.Error.passwordResetSent
         case .passwordsDoNotMatch:
-            return "Passwords don't match."
+            return L10n.Error.passwordsMismatch
         case .passwordTooShort:
-            return "Password must be at least 6 characters."
+            return L10n.Error.passwordTooShort
         case .authDeepLinkFailed:
-            return "This link is invalid or expired. Request a new one and try again."
+            return L10n.Error.authDeepLink
         case .authFailed:
-            return "Couldn't sign in. Please try again."
+            return L10n.Error.authFailed
         case .noInternet:
-            return "You're offline. Check your connection and try again."
+            return L10n.Error.noInternet
         default:
             return nil
         }
@@ -91,11 +91,11 @@ enum AppError: LocalizedError {
     private var dataErrorDescription: String? {
         switch self {
         case .notFound(let type, _):
-            return "Could not find \(type). It may have been deleted."
+            return L10n.Error.notFound(entityType: type)
         case .saveFailed, .loadFailed:
-            return "Couldn't update local data. Please try again."
+            return L10n.Error.dataFailed
         case .embeddingFailed:
-            return "Something went wrong. Please try again."
+            return L10n.Error.generic
         default:
             return nil
         }
@@ -104,9 +104,9 @@ enum AppError: LocalizedError {
     private var llmErrorDescription: String? {
         switch self {
         case .llmCallFailed:
-            return "Couldn't reach the AI. Check your connection and try again."
+            return L10n.Error.llmFailed
         case .llmResponseInvalid, .llmContextWindowExceeded:
-            return "Something went wrong. Please try again."
+            return L10n.Error.generic
         default:
             return nil
         }

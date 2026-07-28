@@ -13,15 +13,15 @@ struct ForgotPasswordView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
-                    Text("Reset password")
+                    Text(L10n.Auth.resetPassword)
                         .titleStyle()
 
-                    Text("Enter your email and we'll send a link to reset your password.")
+                    Text(L10n.Auth.resetSubtitle)
                         .secondaryStyle()
 
                     ThemeTextField(
                         text: $viewModel.email,
-                        placeholder: "Email",
+                        placeholder: L10n.Auth.email,
                         maxLength: 254
                     )
                     .textInputAutocapitalization(.never)
@@ -38,7 +38,7 @@ struct ForgotPasswordView: View {
                     }
 
                     PrimaryButton(
-                        title: "Send reset link",
+                        title: L10n.Auth.sendResetLink,
                         isLoading: viewModel.isLoading,
                         isEnabled: viewModel.canSubmit
                     ) {
@@ -50,7 +50,7 @@ struct ForgotPasswordView: View {
             .background(Color.theme.background.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Close") { dismiss() }
+                    Button(L10n.Common.close) { dismiss() }
                         .foregroundStyle(Color.theme.accent)
                 }
             }

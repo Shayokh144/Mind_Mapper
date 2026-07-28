@@ -45,6 +45,6 @@ struct ScopeGuard: ScopeGuardProtocol {
         if verdict.contains("ALLOWED") {
             return .inScope
         }
-        return .outOfScope("I can only help with your personal memories and plans.")
+        return .outOfScope(L10n.Guard.scopeBlocked)
     }
 }

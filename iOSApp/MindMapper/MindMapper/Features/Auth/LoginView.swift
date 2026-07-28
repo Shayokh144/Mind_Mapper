@@ -27,7 +27,7 @@ struct LoginView: View {
             .background(Color.theme.background.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Close") { dismiss() }
+                    Button(L10n.Common.close) { dismiss() }
                         .foregroundStyle(Color.theme.accent)
                 }
             }
@@ -43,13 +43,13 @@ struct LoginView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
-            Text(viewModel.isSignUpMode ? "Create account" : "Welcome back")
+            Text(viewModel.isSignUpMode ? L10n.Auth.createAccount : L10n.Auth.welcomeBack)
                 .titleStyle()
 
             Text(
                 viewModel.isSignUpMode
-                    ? "Sign up with email to start saving memories."
-                    : "Sign in with your email and password."
+                    ? L10n.Auth.signUpSubtitle
+                    : L10n.Auth.signInSubtitle
             )
             .secondaryStyle()
         }
@@ -59,7 +59,7 @@ struct LoginView: View {
         VStack(spacing: Spacing.md) {
             ThemeTextField(
                 text: $viewModel.email,
-                placeholder: "Email",
+                placeholder: L10n.Auth.email,
                 maxLength: 254
             )
             .textInputAutocapitalization(.never)
@@ -69,14 +69,14 @@ struct LoginView: View {
 
             ThemeTextField(
                 text: $viewModel.password,
-                placeholder: "Password",
+                placeholder: L10n.Auth.password,
                 maxLength: 128,
                 isSecure: true
             )
             .textContentType(viewModel.isSignUpMode ? .newPassword : .password)
 
             if !viewModel.isSignUpMode {
-                Button("Forgot password?") {
+                Button(L10n.Auth.forgotPassword) {
                     showForgotPassword = true
                 }
                 .font(.theme.body)
@@ -89,7 +89,7 @@ struct LoginView: View {
     private var actions: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             PrimaryButton(
-                title: viewModel.isSignUpMode ? "Sign up" : "Sign in",
+                title: viewModel.isSignUpMode ? L10n.Auth.signUp : L10n.Auth.signIn,
                 isLoading: viewModel.isLoading,
                 isEnabled: viewModel.canSubmit
             ) {
@@ -99,8 +99,8 @@ struct LoginView: View {
             Button(action: viewModel.toggleMode) {
                 Text(
                     viewModel.isSignUpMode
-                        ? "Already have an account? Sign in"
-                        : "Need an account? Sign up"
+                        ? L10n.Auth.haveAccount
+                        : L10n.Auth.needAccount
                 )
                 .font(.theme.body)
                 .foregroundStyle(Color.theme.accent)

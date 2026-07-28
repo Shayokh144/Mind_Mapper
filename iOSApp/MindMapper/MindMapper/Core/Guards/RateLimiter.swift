@@ -23,11 +23,11 @@ nonisolated final class RateLimiter: RateLimiterProtocol, @unchecked Sendable {
 
         if let until = cooldownUntil, current < until {
             let remaining = max(1, Int(ceil(until.timeIntervalSince(current))))
-            return .throttled("Too many out-of-scope requests. Wait \(remaining)s.")
+            return .throttled(L10n.Guard.rateOutOfScope(seconds: remaining))
         }
 
         if messageCount >= maxMessagesPerHour {
-            return .throttled("You've sent many messages this hour. Take a short break.")
+            return .throttled(L10n.Guard.rateHourly)
         }
 
         messageCount += 1

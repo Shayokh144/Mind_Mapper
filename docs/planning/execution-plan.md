@@ -2069,7 +2069,8 @@ Tests: `MindMapperTests/RAGAnswerServiceTests.swift`.
 
 ---
 
-> **Status (Phase 8 + Chat orchestrator):** Shipped in task 14 — `MixedQueryService` / `MixedQueryUseCase`, `ChatViewModel` (+ `ChatDependencies`), session/message repos, minimal `AppRouter`. See `docs/tasks/phase_1/14-mixed-query-chat_iOS.md`. Chat UI (bubbles) remains task 18; Root/Tab wiring remains task 16.
+> **Status (Phase 8 + Chat orchestrator):** Shipped in task 14 — `MixedQueryService` / `MixedQueryUseCase`, `ChatViewModel` (+ `ChatDependencies`), session/message repos, minimal `AppRouter`. See `docs/tasks/phase_1/14-mixed-query-chat_iOS.md`.  
+> **Status (navigation shell):** Shipped in task 16 — `AppRouter` in `AppRootHost`, `RootView` tabs, Chats `NavigationStack`, stub Chat/Session list, `.openMemory` deep-link observer. Session list polish = task 17; full Chat UI = task 18.
 
 ### Step 8.1 — Parallel Execution + Merge
 

@@ -15,11 +15,11 @@ struct OnboardingView: View {
                     .accessibilityHidden(true)
 
                 VStack(spacing: Spacing.sm) {
-                    Text("Mind Mapper")
+                    Text(L10n.Brand.name)
                         .font(.theme.largeTitle)
                         .foregroundStyle(Color.theme.textPrimary)
 
-                    Text("Remember what matters across every conversation.")
+                    Text(L10n.Onboarding.tagline)
                         .font(.theme.body)
                         .foregroundStyle(Color.theme.textSecondary)
                         .multilineTextAlignment(.center)
@@ -28,15 +28,15 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     featureRow(
                         icon: "bubble.left.and.bubble.right.fill",
-                        text: "Chat naturally — store or recall memories"
+                        text: L10n.Onboarding.featureChat
                     )
                     featureRow(
                         icon: "sparkles",
-                        text: "Smart recall from past sessions"
+                        text: L10n.Onboarding.featureRecall
                     )
                     featureRow(
                         icon: "lock.shield.fill",
-                        text: "Your data stays under your control"
+                        text: L10n.Onboarding.featurePrivacy
                     )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -47,11 +47,11 @@ struct OnboardingView: View {
             Spacer()
 
             VStack(spacing: Spacing.md) {
-                PrimaryButton(title: "Continue with email") {
+                PrimaryButton(title: L10n.Onboarding.continueEmail) {
                     showLogin = true
                 }
 
-                Text("By continuing, you agree to our Terms and Privacy Policy.")
+                Text(L10n.Onboarding.legal)
                     .font(.theme.caption)
                     .foregroundStyle(Color.theme.textMuted)
                     .multilineTextAlignment(.center)

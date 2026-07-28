@@ -73,8 +73,21 @@ final class AppContainer: ObservableObject {
         )
     }
 
-    func makeRootViewModel() -> RootViewModel {
-        RootViewModel(authManager: authManager)
+    func makeSettingsViewModel() -> SettingsViewModel {
+        SettingsViewModel(authManager: authManager)
+    }
+
+    /// Requires a signed-in user. Returns `nil` when unauthenticated.
+    func makeSessionListViewModel(router: AppRouter) -> SessionListViewModel? {
+        guard let userId = authManager.currentUser?.id else {
+            AppLogger.error("makeSessionListViewModel called without an authenticated user")
+            return nil
+        }
+        return SessionListViewModel(
+            userId: userId,
+            sessionRepository: sessionRepository,
+            router: router
+        )
     }
 
     func makeClassifyIntentUseCase() -> ClassifyIntentUseCaseProtocol {

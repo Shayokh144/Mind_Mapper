@@ -8,9 +8,10 @@ Related: [`theme-guide.md`](theme-guide.md) (visual system), `iOSApp/AGENT.md` (
 Primary flow code:
 
 - `App/MindMapperApp.swift` (`MindMapperApp` + `AppRootHost`)
+- `Core/Navigation/AppRouter.swift`
 - `Core/Network/AuthManager.swift` / `AuthManagerProtocol.swift`
 - `Core/DI/AppContainer.swift`
-- `Features/Onboarding|Auth|Root/*`
+- `Features/Onboarding|Auth|Root|Sessions|Chat|Memories|Settings/*`
 
 ---
 
@@ -25,7 +26,8 @@ Primary flow code:
 | Reachability | Single `NetworkReachabilityService` (`NWPathMonitor`), global offline banner, `NetworkGate` + auth VM guards |
 | Reconnect | On path → connected, `revalidateSessionIfNeeded()` |
 | Local user | On auth success, upsert `users` via `AuthRepository` |
-| Screens in flow | Onboarding, Login (sheet), Forgot password (sheet), Set new password, Root (temp), session restore splash (rotating logo), boot failure, offline banner |
+| Screens in flow | Onboarding, Login (sheet), Forgot password (sheet), Set new password, Root tabs (Chats / Memories / Settings), Session list shell, Chat shell, session restore splash, boot failure, offline banner |
+| Navigation | `AppRouter` (`path`, sheets, `selectedTab`, `.openMemory` deep link) as `@EnvironmentObject` |
 | Config | `AppConfig` (Supabase URL/key, `mindmapper://auth-callback`) |
 
 ---
@@ -38,7 +40,7 @@ flowchart TD
     B -->|nil| C["Boot failure UI<br/>Couldn't open local storage"]
     B -->|ok| D{"AppContainer.make<br/>valid Supabase URL?"}
     D -->|nil| E["Boot failure UI<br/>Couldn't configure the backend"]
-    D -->|ok| F["AppRootHost<br/>StateObject AppContainer<br/>ObservedObject AuthManager"]
+    D -->|ok| F["AppRootHost<br/>StateObject AppContainer + AppRouter<br/>ObservedObject AuthManager"]
     F --> G[".task → restoreSession()"]
     F --> DL[".onOpenURL → handleAuthCallback"]
     F --> Net["NetworkReachabilityService"]
@@ -111,7 +113,7 @@ flowchart TD
 
 Notes:
 
-- Login / Forgot password are **sheets**. A minimal `AppRouter` exists (task 14) but is **not yet** wired into `MindMapperApp` / tabs (task 16).
+- Login / Forgot password are **sheets** on Onboarding. Authenticated navigation uses `AppRouter` (tabs + Chats `NavigationStack`).
 - Login does not call `dismiss()` on success — the host swaps to `RootView`, so Onboarding (and its sheet) leave the hierarchy.
 - Errors surface as `ThemeBadge` via `AppError` on the ViewModel.
 
@@ -140,14 +142,20 @@ flowchart TD
 ## 5. Signed-in path (today)
 
 ```mermaid
-flowchart LR
-    R["RootView<br/>email + Sign out"] -->|Sign out| SO["AuthManager.signOut"]
-    SO -->|ok| O["isAuthenticated = false"]
-    O --> Onb["AppRootHost → OnboardingView"]
-    SO -->|fail| Err["errorMessage on RootView"]
+flowchart TD
+    R["RootView TabView<br/>tint = Color.theme.accent"] --> C["Chats tab<br/>NavigationStack path = router.path"]
+    R --> M["Memories tab<br/>placeholder"]
+    R --> S["Settings tab<br/>email + Sign out"]
+    C --> L["SessionListView<br/>+ new / tap row"]
+    L -->|router.navigate chat| Chat["ChatView shell<br/>loadSession + closeSession hooks"]
+    Chat -->|Done / navigateToRoot| L
+    S -->|Sign out| SO["AuthManager.signOut"]
+    SO -->|ok| O["isAuthenticated = false → Onboarding"]
+    N["Notification .openMemory"] --> R
+    N -->|resolve session_id or memory_id| Chat
 ```
 
-`RootView` is a **temporary shell** to prove auth end-to-end. Tabs / chat / memories / settings UI are not in this tree yet.
+`RootView` is the authenticated shell. Session list / chat UIs are **shells** (polish in tasks 17–18). Sign-out lives on Settings.
 
 ---
 
@@ -176,7 +184,11 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | `LoginView` | Onboarding sheet | Sign-in/up → Root; or sheet → Forgot password |
 | `ForgotPasswordView` | Login sheet | Success message; email deep link later |
 | `SetNewPasswordView` | Recovery deep link | Update password → Root |
-| `RootView` | `isAuthenticated` | Sign out → Onboarding |
+| `RootView` (tabs) | `isAuthenticated` | Chats / Memories / Settings; sign out → Onboarding |
+| `SessionListView` | Chats tab root | + or row → `ChatView` via `AppRouter` |
+| `ChatView` (shell) | `Destination.chat` | Done → list; disappear/background → `closeSession` |
+| `MemoryListView` (placeholder) | Memories tab or push | — |
+| `SettingsView` | Settings tab | Sign out → Onboarding |
 | Deep-link error badge | Failed `handleAuthCallback` | Tap to clear |
 | Offline banner (top) | `networkReachability.status == .disconnected` | Auto-hides when connected |
 
@@ -187,10 +199,10 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | Item | Status |
 |------|--------|
 | `ContentView` | Xcode template leftover — not used by `@main` |
-| `ChatViewModel` / MixedQuery / RAG pipelines | Implemented; **no ChatView UI yet** (task 18) |
-| `AppRouter` | Type exists (`Core/Navigation/`); **not wired** into app shell (task 16) |
-| `SessionRepository` / `MessageRepository` | Implemented; session list UI not live (task 17) |
-| `Features/Sessions|Memories|Settings` views | Still placeholders |
+| Full Chat UI (bubbles, input, typing) | Stub `ChatView` only — task 18 |
+| Session list polish (icons, search, swipe-delete) | Shell list only — task 17 |
+| Memories list / memory detail content | Placeholders |
+| Push notification → `.openMemory` poster | Observer ready; delegate in task 20 |
 | Sign in with Apple | Pre-release checklist |
 
 ---
