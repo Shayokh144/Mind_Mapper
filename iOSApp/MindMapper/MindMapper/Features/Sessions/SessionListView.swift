@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Shell list — task 17 adds display models, search, icon tiles, swipe-to-delete.
 struct SessionListView: View {
     @StateObject private var viewModel: SessionListViewModel
 
@@ -41,6 +40,21 @@ struct SessionListView: View {
                     .onTapGesture { viewModel.errorMessage = nil }
             }
         }
+        .confirmationDialog(
+            L10n.Sessions.deleteTitle,
+            isPresented: Binding(
+                get: { viewModel.isDeleteConfirmationPresented },
+                set: { viewModel.isDeleteConfirmationPresented = $0 }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(L10n.Sessions.deleteConfirm, role: .destructive) {
+                Task { await viewModel.confirmDelete() }
+            }
+            Button(L10n.Common.close, role: .cancel) {}
+        } message: {
+            Text(L10n.Sessions.deleteMessage)
+        }
         .task {
             await viewModel.loadSessions()
         }
@@ -59,23 +73,41 @@ struct SessionListView: View {
     }
 
     private var sessionList: some View {
-        List(viewModel.sessions) { session in
-            Button {
-                viewModel.openSession(session)
-            } label: {
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text(session.title ?? L10n.Common.newConversation)
-                        .headlineStyle()
-                    if let tag = session.topicTag {
-                        Text(tag.rawValue)
-                            .captionStyle()
+        List {
+            Section {
+                ThemeTextField(
+                    text: $viewModel.searchText,
+                    placeholder: L10n.Sessions.searchPlaceholder,
+                    maxLength: 100
+                )
+                .listRowInsets(EdgeInsets(
+                    top: Spacing.sm,
+                    leading: Spacing.lg,
+                    bottom: Spacing.sm,
+                    trailing: Spacing.lg
+                ))
+                .listRowBackground(Color.theme.background)
+                .listRowSeparator(.hidden)
+            }
+
+            ForEach(viewModel.filteredSessions) { session in
+                Button {
+                    viewModel.openSession(session)
+                } label: {
+                    SessionRowView(session: session)
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(Color.theme.background)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        viewModel.requestDelete(session)
+                    } label: {
+                        Label(L10n.Sessions.deleteAction, systemImage: "trash")
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 }

@@ -154,6 +154,11 @@ nonisolated final class MockSessionRepository: SessionRepositoryProtocol, @unche
         if let fetchError { throw fetchError }
         return sessions.filter { $0.userId == userId }
     }
+
+    func deleteCascade(id: String) async throws {
+        if let fetchError { throw fetchError }
+        sessions.removeAll { $0.id == id }
+    }
 }
 
 nonisolated final class MockMemoryRepository: MemoryRepositoryProtocol, @unchecked Sendable {

@@ -55,4 +55,36 @@ nonisolated struct SessionRepository: SessionRepositoryProtocol {
             throw AppError.loadFailed(underlying: error)
         }
     }
+
+    func deleteCascade(id: String) async throws {
+        do {
+            try await database.dbQueue.write { db in
+                let memoryIds = try MemoryRecord
+                    .filter(Column("session_id") == id)
+                    .fetchAll(db)
+                    .map(\.id)
+
+                if !memoryIds.isEmpty {
+                    try MemoryEntityRecord
+                        .filter(memoryIds.contains(Column("memory_id")))
+                        .deleteAll(db)
+                    try VectorRecord
+                        .filter(memoryIds.contains(Column("memory_id")))
+                        .deleteAll(db)
+                    try MemoryRecord
+                        .filter(Column("session_id") == id)
+                        .deleteAll(db)
+                }
+
+                try MessageRecord
+                    .filter(Column("session_id") == id)
+                    .deleteAll(db)
+
+                _ = try SessionRecord.deleteOne(db, key: id)
+            }
+        } catch {
+            AppLogger.error("Failed to delete session \(id)", error: error)
+            throw AppError.saveFailed(underlying: error)
+        }
+    }
 }

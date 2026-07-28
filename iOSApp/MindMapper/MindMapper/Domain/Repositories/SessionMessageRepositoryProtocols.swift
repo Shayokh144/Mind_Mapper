@@ -5,6 +5,8 @@ protocol SessionRepositoryProtocol {
     func update(_ session: Session) async throws
     func fetch(id: String) async throws -> Session?
     func fetchAll(for userId: String) async throws -> [Session]
+    /// FK-safe cascade: entities → vectors → memories → messages → session (one transaction).
+    func deleteCascade(id: String) async throws
 }
 
 protocol MessageRepositoryProtocol {

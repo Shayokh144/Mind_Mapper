@@ -2308,6 +2308,8 @@ class ChatOrchestrator: ObservableObject {
 
 ### Step 11.1 — Session List Screen
 
+> **As shipped (task 17):** `SessionListView` / `SessionListViewModel` with `SessionDisplayModel` + `SessionRowView`. Local search (`filteredSessions`), swipe-to-delete → confirmation → `DeleteSessionUseCase` / `SessionRepository.deleteCascade`. Factory: `AppContainer.makeSessionListViewModel(router:)` (optional). Lives inside RootView’s Chats `NavigationStack` — no nested stack. Sketch below still shows `ChatOrchestrator.shared` / direct DB reads — prefer the shipped DI path.
+
 ```swift
 // Features/Sessions/SessionListView.swift
 import SwiftUI

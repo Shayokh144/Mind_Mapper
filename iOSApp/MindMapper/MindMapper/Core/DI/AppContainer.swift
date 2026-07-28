@@ -86,8 +86,13 @@ final class AppContainer: ObservableObject {
         return SessionListViewModel(
             userId: userId,
             sessionRepository: sessionRepository,
+            deleteSessionUseCase: makeDeleteSessionUseCase(),
             router: router
         )
+    }
+
+    func makeDeleteSessionUseCase() -> DeleteSessionUseCaseProtocol {
+        DeleteSessionUseCase(sessionRepository: sessionRepository)
     }
 
     func makeClassifyIntentUseCase() -> ClassifyIntentUseCaseProtocol {

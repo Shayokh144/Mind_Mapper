@@ -81,9 +81,15 @@ enum L10n {
         static var title: String { tr("sessions.title") }
         static var empty: String { tr("sessions.empty") }
         static var newAccessibility: String { tr("sessions.new_a11y") }
+        static var searchPlaceholder: String { tr("sessions.search_placeholder") }
         static var loadFailed: String { tr("sessions.load_failed") }
         static var startFailed: String { tr("sessions.start_failed") }
         static var signInRequired: String { tr("sessions.sign_in_required") }
+        static var deleteAction: String { tr("sessions.delete_action") }
+        static var deleteTitle: String { tr("sessions.delete_title") }
+        static var deleteMessage: String { tr("sessions.delete_message") }
+        static var deleteConfirm: String { tr("sessions.delete_confirm") }
+        static var deleteFailed: String { tr("sessions.delete_failed") }
     }
 
     // MARK: - Chat

@@ -112,7 +112,9 @@ iOSApp/
 │   │   └── LoginViewModel.swift
 │   ├── Sessions/
 │   │   ├── SessionListView.swift
-│   │   └── SessionListViewModel.swift
+│   │   ├── SessionListViewModel.swift
+│   │   ├── SessionDisplayModel.swift
+│   │   └── SessionRowView.swift
 │   ├── Chat/
 │   │   ├── ChatView.swift
 │   │   ├── ChatViewModel.swift
@@ -1018,7 +1020,7 @@ final class AppContainer: ObservableObject {
         )
     }
 
-    // makeSessionListViewModel(router:) / makeSettingsViewModel() — see AppContainer.swift
+    // makeSessionListViewModel(router:) / makeDeleteSessionUseCase() / makeSettingsViewModel() — see AppContainer.swift
 }
 ```
 
