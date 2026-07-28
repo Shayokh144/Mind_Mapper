@@ -74,6 +74,7 @@ iOSApp/
 │   ├── VectorStore/                ← Cosine similarity over local embedding blobs
 │   ├── RAG/                        ← MemoryExtractor, RAGRetriever, RAGAnswerService, MixedQueryService
 │   ├── Navigation/                 ← AppRouter (NavigationStack path + sheets)
+│   ├── Lifecycle/                  ← AppLifecycleListener (session close on background)
 │   ├── DI/                         ← AppContainer (dependency injection)
 │   └── Guards/                     ← InputSanitiser, ScopeGuard, RateLimiter
 │
@@ -219,6 +220,9 @@ final class ChatViewModel: ObservableObject {
         // rate → sanitise → save user msg → scope → classify
         // → STORE / QUERY / MIXED / CHAT (see Features/Chat/ChatViewModel.swift)
     }
+
+    func loadSession() async { /* messageRepository.fetchAll */ }
+    func closeSession() async { /* CloseSessionUseCase — also inactivity / background */ }
 }
 ```
 
@@ -973,6 +977,16 @@ final class AppContainer: ObservableObject {
         )
     }
 
+    func makeCloseSessionUseCase() -> CloseSessionUseCaseProtocol {
+        CloseSessionUseCase(
+            messageRepository: messageRepository,
+            sessionRepository: sessionRepository,
+            memoryRepository: memoryRepository,
+            vectorRepository: vectorRepository,
+            llmClient: LLMClient.shared
+        )
+    }
+
     func makeChatViewModel(sessionId: String, router: AppRouter) -> ChatViewModel? {
         guard let userId = authManager.currentUser?.id else { return nil }
         return ChatViewModel(
@@ -991,6 +1005,7 @@ final class AppContainer: ObservableObject {
             saveMemoryUseCase: makeSaveMemoryUseCase(),
             queryMemoryUseCase: makeQueryMemoryUseCase(),
             mixedQueryUseCase: makeMixedQueryUseCase(),
+            closeSessionUseCase: makeCloseSessionUseCase(),
             llmClient: LLMClient.shared,
             messageRepository: messageRepository,
             sessionRepository: sessionRepository

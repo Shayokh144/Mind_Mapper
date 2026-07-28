@@ -2111,7 +2111,9 @@ struct MixedQueryService {
 
 ### Step 9.1 — Session Close Service
 
-Create `Core/RAG/SessionCloseService.swift`:
+> **As shipped (task 15):** `Domain/UseCases/CloseSessionUseCase.swift` (not `SessionCloseService.shared`). DI via `AppContainer.makeCloseSessionUseCase()` → `ChatDependencies`. Title/topic (`.nano`) and summary (`.mini`) run in parallel with `async let`. `SessionRepository.update(_:)`. Triggers: `ChatViewModel.closeSession()` (inactivity 120s + API for `.onDisappear` / background); `Core/Lifecycle/AppLifecycleListener` (ChatView wiring in task 18). Re-close replaces prior `[Session summary]` memories before re-embedding.
+
+Historical sketch below kept for prompt / bullet-embedding reference only (uses outdated `.shared` APIs):
 
 ```swift
 import Foundation

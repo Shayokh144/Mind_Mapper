@@ -119,6 +119,16 @@ final class AppContainer: ObservableObject {
         )
     }
 
+    func makeCloseSessionUseCase() -> CloseSessionUseCaseProtocol {
+        CloseSessionUseCase(
+            messageRepository: messageRepository,
+            sessionRepository: sessionRepository,
+            memoryRepository: memoryRepository,
+            vectorRepository: vectorRepository,
+            llmClient: LLMClient.shared
+        )
+    }
+
     func makeChatDependencies() -> ChatDependencies {
         ChatDependencies(
             rateLimiter: rateLimiter,
@@ -127,6 +137,7 @@ final class AppContainer: ObservableObject {
             saveMemoryUseCase: makeSaveMemoryUseCase(),
             queryMemoryUseCase: makeQueryMemoryUseCase(),
             mixedQueryUseCase: makeMixedQueryUseCase(),
+            closeSessionUseCase: makeCloseSessionUseCase(),
             llmClient: LLMClient.shared,
             messageRepository: messageRepository,
             sessionRepository: sessionRepository

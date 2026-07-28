@@ -7,6 +7,7 @@ final class ChatViewModelTests: XCTestCase {
     private var saveMemory: MockSaveMemoryUseCase!
     private var queryMemory: MockQueryMemoryUseCase!
     private var mixedQuery: MockMixedQueryUseCase!
+    private var closeSession: MockCloseSessionUseCase!
     private var scopeGuard: MockScopeGuard!
     private var rateLimiter: MockRateLimiter!
     private var messages: MockMessageRepository!
@@ -22,6 +23,7 @@ final class ChatViewModelTests: XCTestCase {
         saveMemory = MockSaveMemoryUseCase()
         queryMemory = MockQueryMemoryUseCase()
         mixedQuery = MockMixedQueryUseCase()
+        closeSession = MockCloseSessionUseCase()
         scopeGuard = MockScopeGuard()
         rateLimiter = MockRateLimiter()
         messages = MockMessageRepository()
@@ -41,6 +43,7 @@ final class ChatViewModelTests: XCTestCase {
         saveMemory = nil
         queryMemory = nil
         mixedQuery = nil
+        closeSession = nil
         scopeGuard = nil
         rateLimiter = nil
         messages = nil
@@ -188,9 +191,37 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(sessions.sessions.count, 2)
     }
 
+    func test_closeSession_afterMessage_callsUseCaseOnce() async {
+        classify.intent = .chat
+        llm.completeResult = "Hello!"
+
+        await sut.sendMessage("Hi there")
+        await sut.closeSession()
+        await sut.closeSession()
+
+        XCTAssertEqual(closeSession.executeCallCount, 1)
+        XCTAssertEqual(closeSession.lastSessionId, session.id)
+    }
+
+    func test_closeSession_withoutActivity_doesNotCallUseCase() async {
+        await sut.closeSession()
+        XCTAssertEqual(closeSession.executeCallCount, 0)
+    }
+
+    func test_inactivity_triggersCloseSession() async {
+        sut = makeSUT(inactivityInterval: 0.05)
+        classify.intent = .chat
+        llm.completeResult = "Hello!"
+
+        await sut.sendMessage("Hi there")
+        try? await Task.sleep(nanoseconds: 120_000_000)
+
+        XCTAssertEqual(closeSession.executeCallCount, 1)
+    }
+
     // MARK: - Helpers
 
-    private func makeSUT() -> ChatViewModel {
+    private func makeSUT(inactivityInterval: TimeInterval = 120) -> ChatViewModel {
         ChatViewModel(
             sessionId: session.id,
             userId: "user-1",
@@ -201,11 +232,13 @@ final class ChatViewModelTests: XCTestCase {
                 saveMemoryUseCase: saveMemory,
                 queryMemoryUseCase: queryMemory,
                 mixedQueryUseCase: mixedQuery,
+                closeSessionUseCase: closeSession,
                 llmClient: llm,
                 messageRepository: messages,
                 sessionRepository: sessions
             ),
-            router: router
+            router: router,
+            inactivityInterval: inactivityInterval
         )
     }
 }

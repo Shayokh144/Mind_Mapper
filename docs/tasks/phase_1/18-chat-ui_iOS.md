@@ -29,7 +29,7 @@ Screens 3 and 4 in the UI mockup — Chat View in light and dark mode. Shows: na
 - [ ] **6.** Build the input bar at the bottom: a `ThemeTextField` component with placeholder 'Tell me something or ask...', a character counter label showing `500 - inputText.count` that turns red when below 50 characters remaining, and a circular send button using `Color.theme.accent` fill with a white upward arrow SF Symbol. Disable the send button when `inputText` is empty or `viewModel.isLoading` is true.
 - [ ] **7.** Add a `@FocusState` for the text field. Tapping the message list dismisses the keyboard using `.scrollDismissesKeyboard(.interactively)`.
 - [ ] **8.** In the navigation bar: show the session title. Add a trailing kebab menu button (`circle.grid.2x2` or `ellipsis` SF Symbol) with a `Menu` containing: 'View memories in this chat' (navigate to MemoryListView for this session) and 'Delete conversation' (calls delete with confirmation).
-- [ ] **9.** Trigger `viewModel.closeSession()` in `.onDisappear`. Register `AppLifecycleListener` for background trigger.
+- [ ] **9.** Trigger `viewModel.closeSession()` in `.onDisappear`. Attach existing `AppLifecycleListener` via `.onAppBackground { Task { await viewModel.closeSession() } }` (`Core/Lifecycle/AppLifecycleListener.swift` — shipped in task 15). Do not recreate the close pipeline.
 - [ ] **10.** Apply `.task { await viewModel.loadSession() }` to load message history when the view appears.
 
 ---

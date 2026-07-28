@@ -47,5 +47,5 @@ Screen 2 in the UI mockup — Home screen / Session List. Shows: large title 'My
 
 The View must not import GRDB or Supabase. It must not call `DatabaseManager` directly. It receives only `SessionDisplayModel` objects from the ViewModel. The `iconColor` for each topic must come from `Color.theme` tokens, not hardcoded hex values.
 
-**Already shipped:** `SessionRepository.fetchAll(for:)` / `save` (task 14). Add `makeSessionListViewModel(router:)` on `AppContainer` when building this screen. `startNewSession` can reuse `ChatViewModel.startNewSession` patterns or call the session repo directly from the list VM.
+**Already shipped:** `SessionRepository.fetchAll(for:)` / `save` / `update` (tasks 14–15). Titles and `topicTag` come from `CloseSessionUseCase`. Add `makeSessionListViewModel(router:)` on `AppContainer` when building this screen. `startNewSession` can reuse `ChatViewModel.startNewSession` patterns or call the session repo directly from the list VM.
 

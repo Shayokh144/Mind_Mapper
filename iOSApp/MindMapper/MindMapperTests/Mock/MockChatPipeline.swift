@@ -64,6 +64,18 @@ nonisolated final class MockMixedQueryUseCase: MixedQueryUseCaseProtocol, @unche
     }
 }
 
+nonisolated final class MockCloseSessionUseCase: CloseSessionUseCaseProtocol, @unchecked Sendable {
+    var error: Error?
+    private(set) var executeCallCount = 0
+    private(set) var lastSessionId: String?
+
+    func execute(sessionId: String) async throws {
+        executeCallCount += 1
+        lastSessionId = sessionId
+        if let error { throw error }
+    }
+}
+
 nonisolated final class MockScopeGuard: ScopeGuardProtocol, @unchecked Sendable {
     var result: ScopeResult = .inScope
     var error: Error?
@@ -114,11 +126,23 @@ nonisolated final class MockMessageRepository: MessageRepositoryProtocol, @unche
 nonisolated final class MockSessionRepository: SessionRepositoryProtocol, @unchecked Sendable {
     var sessions: [Session] = []
     var saveError: Error?
+    var updateError: Error?
     var fetchError: Error?
+    private(set) var updateCallCount = 0
 
     func save(_ session: Session) async throws {
         if let saveError { throw saveError }
         sessions.append(session)
+    }
+
+    func update(_ session: Session) async throws {
+        updateCallCount += 1
+        if let updateError { throw updateError }
+        if let index = sessions.firstIndex(where: { $0.id == session.id }) {
+            sessions[index] = session
+        } else {
+            sessions.append(session)
+        }
     }
 
     func fetch(id: String) async throws -> Session? {
@@ -129,6 +153,78 @@ nonisolated final class MockSessionRepository: SessionRepositoryProtocol, @unche
     func fetchAll(for userId: String) async throws -> [Session] {
         if let fetchError { throw fetchError }
         return sessions.filter { $0.userId == userId }
+    }
+}
+
+nonisolated final class MockMemoryRepository: MemoryRepositoryProtocol, @unchecked Sendable {
+    var memories: [Memory] = []
+    var saveError: Error?
+    var fetchError: Error?
+    private(set) var saved: [Memory] = []
+    private(set) var deletedIds: [String] = []
+
+    func save(_ memory: Memory) async throws {
+        try await save(memory, entities: [], superseding: nil)
+    }
+
+    func save(
+        _ memory: Memory,
+        entities: [MemoryEntity],
+        superseding supersededId: String?
+    ) async throws {
+        if let saveError { throw saveError }
+        saved.append(memory)
+        memories.append(memory)
+        _ = entities
+        _ = supersededId
+    }
+
+    func fetchAll(for userId: String) async throws -> [Memory] {
+        if let fetchError { throw fetchError }
+        return memories.filter { $0.userId == userId }
+    }
+
+    func fetch(id: String) async throws -> Memory? {
+        if let fetchError { throw fetchError }
+        return memories.first { $0.id == id }
+    }
+
+    func fetchEntities(for memoryId: String) async throws -> [MemoryEntity] {
+        _ = memoryId
+        return []
+    }
+
+    func delete(_ memoryId: String) async throws {
+        deletedIds.append(memoryId)
+        memories.removeAll { $0.id == memoryId }
+    }
+
+    func markSuperseded(_ memoryId: String) async throws {
+        if let index = memories.firstIndex(where: { $0.id == memoryId }) {
+            memories[index].isSuperseded = true
+        }
+    }
+}
+
+nonisolated final class MockVectorRepository: VectorRepositoryProtocol, @unchecked Sendable {
+    private(set) var savedMemoryIds: [String] = []
+    var saveError: Error?
+
+    func save(embedding: [Float], memoryId: String) async throws {
+        _ = embedding
+        if let saveError { throw saveError }
+        savedMemoryIds.append(memoryId)
+    }
+
+    func search(
+        queryEmbedding: [Float],
+        topK: Int,
+        threshold: Float
+    ) async throws -> [VectorSearchResult] {
+        _ = queryEmbedding
+        _ = topK
+        _ = threshold
+        return []
     }
 }
 

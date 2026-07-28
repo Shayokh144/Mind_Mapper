@@ -16,6 +16,12 @@ final class ChatViewModel: ObservableObject {
     private let router: AppRouter
     private var sessionId: String
     private let userId: String
+    private let inactivityInterval: TimeInterval
+
+    private var inactivityTask: Task<Void, Never>?
+    private var isClosingSession = false
+    /// True after new turns until a successful close (avoids duplicate summary embeddings).
+    private var needsSessionClose = false
 
     /// Exposed for UI that needs to push related screens (task 16+).
     var appRouter: AppRouter { router }
@@ -24,12 +30,18 @@ final class ChatViewModel: ObservableObject {
         sessionId: String,
         userId: String,
         dependencies: ChatDependencies,
-        router: AppRouter
+        router: AppRouter,
+        inactivityInterval: TimeInterval = 120
     ) {
         self.sessionId = sessionId
         self.userId = userId
         self.dependencies = dependencies
         self.router = router
+        self.inactivityInterval = inactivityInterval
+    }
+
+    deinit {
+        inactivityTask?.cancel()
     }
 
     // MARK: - Session lifecycle
@@ -42,19 +54,26 @@ final class ChatViewModel: ObservableObject {
             }
             let stored = try await dependencies.messageRepository.fetchAll(for: sessionId)
             messages = stored.map(MessageDisplayModel.init(from:))
+            // Unclosed sessions with history should still close on leave / background.
+            if currentSession?.title == nil, !stored.isEmpty {
+                needsSessionClose = true
+            }
         } catch {
             errorMessage = mapError(error)
         }
     }
 
     func loadSession(_ session: Session) async {
+        inactivityTask?.cancel()
         sessionId = session.id
         currentSession = session
+        needsSessionClose = false
         await loadSession()
     }
 
     @discardableResult
     func startNewSession(userId: String) async throws -> Session {
+        inactivityTask?.cancel()
         let session = Session(userId: userId)
         try await dependencies.sessionRepository.save(session)
         sessionId = session.id
@@ -62,7 +81,24 @@ final class ChatViewModel: ObservableObject {
         messages = []
         lastAnswerSessionCount = 0
         errorMessage = nil
+        needsSessionClose = false
         return session
+    }
+
+    /// Triggered by ChatView `.onDisappear`, app background, or inactivity.
+    func closeSession() async {
+        guard needsSessionClose, !isClosingSession else { return }
+        isClosingSession = true
+        inactivityTask?.cancel()
+        defer { isClosingSession = false }
+
+        do {
+            try await dependencies.closeSessionUseCase.execute(sessionId: sessionId)
+            needsSessionClose = false
+            currentSession = try await dependencies.sessionRepository.fetch(id: sessionId)
+        } catch {
+            AppLogger.error("Session close failed for \(sessionId)", error: error)
+        }
     }
 
     // MARK: - Send
@@ -100,6 +136,7 @@ final class ChatViewModel: ObservableObject {
         do {
             try await dependencies.messageRepository.save(userMessage)
             messages.append(MessageDisplayModel(from: userMessage))
+            markActivityForSessionClose()
         } catch {
             errorMessage = mapError(error)
             return
@@ -132,6 +169,25 @@ final class ChatViewModel: ObservableObject {
     }
 
     // MARK: - Private
+
+    private func markActivityForSessionClose() {
+        needsSessionClose = true
+        resetInactivityTimer()
+    }
+
+    private func resetInactivityTimer() {
+        inactivityTask?.cancel()
+        let interval = inactivityInterval
+        inactivityTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            await self?.closeSession()
+        }
+    }
 
     private func route(intent: Intent, text: String) async throws -> String {
         switch intent {

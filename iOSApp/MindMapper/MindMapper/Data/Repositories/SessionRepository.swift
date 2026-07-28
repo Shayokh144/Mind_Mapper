@@ -19,6 +19,17 @@ nonisolated struct SessionRepository: SessionRepositoryProtocol {
         }
     }
 
+    func update(_ session: Session) async throws {
+        do {
+            try await database.dbQueue.write { db in
+                try SessionRecord(from: session).update(db)
+            }
+        } catch {
+            AppLogger.error("Failed to update session \(session.id)", error: error)
+            throw AppError.saveFailed(underlying: error)
+        }
+    }
+
     func fetch(id: String) async throws -> Session? {
         do {
             return try await database.dbQueue.read { db in

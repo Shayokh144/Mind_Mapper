@@ -8,6 +8,7 @@ struct ChatDependencies {
     let saveMemoryUseCase: SaveMemoryUseCaseProtocol
     let queryMemoryUseCase: QueryMemoryUseCaseProtocol
     let mixedQueryUseCase: MixedQueryUseCaseProtocol
+    let closeSessionUseCase: CloseSessionUseCaseProtocol
     let llmClient: LLMClientProtocol
     let messageRepository: MessageRepositoryProtocol
     let sessionRepository: SessionRepositoryProtocol
