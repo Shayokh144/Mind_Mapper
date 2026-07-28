@@ -74,7 +74,10 @@ final class AppContainer: ObservableObject {
     }
 
     func makeSettingsViewModel() -> SettingsViewModel {
-        SettingsViewModel(authManager: authManager)
+        SettingsViewModel(
+            authManager: authManager,
+            deleteAccountUseCase: makeDeleteAccountUseCase()
+        )
     }
 
     /// Requires a signed-in user. Returns `nil` when unauthenticated.
@@ -93,6 +96,19 @@ final class AppContainer: ObservableObject {
 
     func makeDeleteSessionUseCase() -> DeleteSessionUseCaseProtocol {
         DeleteSessionUseCase(sessionRepository: sessionRepository)
+    }
+
+    func makeDeleteMemoryUseCase() -> DeleteMemoryUseCaseProtocol {
+        DeleteMemoryUseCase(memoryRepository: memoryRepository)
+    }
+
+    func makeDeleteAccountUseCase() -> DeleteAccountUseCaseProtocol {
+        DeleteAccountUseCase(
+            sessionRepository: sessionRepository,
+            deleteSessionUseCase: makeDeleteSessionUseCase(),
+            authRepository: authRepository,
+            authManager: authManager
+        )
     }
 
     func makeClassifyIntentUseCase() -> ClassifyIntentUseCaseProtocol {

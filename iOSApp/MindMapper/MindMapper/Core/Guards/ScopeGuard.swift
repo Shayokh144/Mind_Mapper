@@ -1,7 +1,7 @@
 import Foundation
 
 /// Layer 2 — LLM scope classification (`.nano`). Call only after `InputSanitiser`.
-struct ScopeGuard: ScopeGuardProtocol {
+nonisolated struct ScopeGuard: ScopeGuardProtocol {
     private let llmClient: LLMClient
 
     init(llmClient: LLMClient) {
@@ -9,6 +9,16 @@ struct ScopeGuard: ScopeGuardProtocol {
     }
 
     func check(_ input: String) async throws -> ScopeResult {
+        if let local = LocalMessageClassifier.scopeVerdict(for: input) {
+            switch local {
+            case .inScope:
+                AppLogger.debug("ScopeGuard local verdict=inScope")
+            case .outOfScope:
+                AppLogger.debug("ScopeGuard local verdict=outOfScope")
+            }
+            return local
+        }
+
         let systemPrompt = """
         You are a strict scope guard for a personal memory app.
         The app ONLY handles: personal facts, personal memories, personal plans, \
@@ -37,7 +47,7 @@ struct ScopeGuard: ScopeGuardProtocol {
                 LLMMessage(role: "system", content: systemPrompt),
                 LLMMessage(role: "user", content: input),
             ],
-            maxTokens: 5,
+            maxTokens: 16,
             temperature: 0
         )
 

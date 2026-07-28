@@ -1,7 +1,8 @@
 import Foundation
 
 /// Completions + embeddings for use cases. `LLMClient` conforms; tests use `MockLLMService`.
-protocol LLMClientProtocol: AnyObject {
+/// Opt out of module-wide MainActor default — callers are often `nonisolated` use cases.
+nonisolated protocol LLMClientProtocol: AnyObject {
     func complete(
         tier: LLMModelTier,
         messages: [LLMMessage],

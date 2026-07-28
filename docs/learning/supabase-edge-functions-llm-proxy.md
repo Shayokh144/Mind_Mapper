@@ -153,16 +153,47 @@ Use cases never pass raw model name strings. They call:
 LLMClient.complete(tier: .nano, messages: …)
 ```
 
-Each tier maps to a **primary** and **fallback** model. If the primary fails with rate limit (429) or quota exhaustion, the system retries **once** with the fallback (see task 08 and `AGENT.md` §6.7). That retry lives in the Edge Function / `LLMClient` layer — not scattered through features.
+Each tier maps to a **primary** and **fallback** model. If the primary fails with rate limit (429), quota exhaustion, **or a 25s provider timeout (504)**, the system retries **once** with the fallback (see task 08 and `AGENT.md` §6.7). That retry lives in the Edge Function — not scattered through features.
+
+For short completions (`max_tokens` ≤ 64, e.g. scope / intent), `llm-proxy` sets Gemini `thinkingConfig.thinkingBudget = 0` on **non-lite** Flash models (Lite rejects that field with a generic `invalid argument`). If that still returns 400, the proxy retries the same model without `thinkingConfig`. Dynamic thinking on Flash has been observed to take **~2 minutes** for a one-word `ALLOWED` reply (free-tier queue + thinking), which outlasts the iOS client.
 
 Dev (Gemini) example (update `LLMModelConfig` when Google retires IDs):
 
 | Tier | Primary | Fallback |
 |------|---------|----------|
-| `.nano` | `gemini-flash-lite-latest` | `gemini-3.5-flash-lite` |
-| `.mini` | `gemini-flash-latest` | `gemini-flash-lite-latest` |
-| `.full` | `gemini-3.6-flash` | `gemini-flash-latest` |
+| `.nano` | `gemini-3.5-flash-lite` (500 RPD) | `gemini-2.5-flash-lite` (20) |
+| `.mini` | `gemini-3.5-flash-lite` (500 RPD) | `gemini-3.6-flash` (20) |
+| `.full` | `gemini-3.6-flash` (20) | `gemini-2.5-flash` (20) |
 | `.embed` | `gemini-embedding-001` | `gemini-embedding-001` |
+
+Only these free-tier quota models (plus embed). No `*-latest` aliases, no `gemini-2.0-flash*` (`limit: 0`).
+
+### Rotating / setting a new `GEMINI_API_KEY`
+
+1. Create a key in [Google AI Studio](https://aistudio.google.com/apikey) (or rotate the old one).
+2. Put it in repo-root `.env` (gitignored):
+
+```bash
+GEMINI_API_KEY=your_new_key_here
+```
+
+3. Push the same value to Supabase (Edge Functions read secrets, not `.env`):
+
+```bash
+set -a && source .env && set +a
+supabase secrets set "GEMINI_API_KEY=$GEMINI_API_KEY" --project-ref uhkiqfmziggrgxbamzoy
+```
+
+Secrets apply without redeploying; redeploy only if you also changed function code:
+
+```bash
+supabase functions deploy llm-proxy --project-ref uhkiqfmziggrgxbamzoy
+supabase functions deploy embed --project-ref uhkiqfmziggrgxbamzoy
+```
+
+4. Confirm models + quota: AI Studio → Rate limits, or `curl ".../v1beta/models?key=$GEMINI_API_KEY"`.
+
+**Local fast-path:** `LocalMessageClassifier` short-circuits obvious scope/intent (e.g. expense/bill STORE) so free-tier Gemini latency does not block routine personal notes. Ambiguous text still uses `.nano` LLM.
 
 When upgrading to OpenAI for production, swap secrets, endpoint URLs, and the tier config — the tier enum and “call by tier” API stay the same.
 
@@ -177,3 +208,57 @@ Feature / UseCase  →  LLMClient (tier)  →  Edge Function  →  Provider API
 ```
 
 **Bottom line:** Edge Functions are the server-side lockbox for the LLM key and the single place that talks to Gemini. The iOS app only asks Supabase for a completion or embedding over HTTPS as a logged-in user.
+
+---
+
+## Debugging request / response (LLM_DEBUG)
+
+The Logs Explorer **gateway** rows (`POST | 200 | …/llm-proxy`) only show HTTP status. They do **not** include Gemini bodies. A `200` means the Edge Function returned successfully to iOS — the phone can still fail later when decoding bad/truncated JSON.
+
+### Commands to run now (enable debug + ship proxy fixes)
+
+From the **repo root**:
+
+```bash
+# 1) Opt-in truncated request/response logs in Edge Function runtime logs
+supabase secrets set LLM_DEBUG=1 --project-ref uhkiqfmziggrgxbamzoy
+
+# 2) Deploy llm-proxy (timeouts, thinkingBudget for short replies, thought-part filtering, llm_debug)
+supabase functions deploy llm-proxy --project-ref uhkiqfmziggrgxbamzoy
+supabase functions deploy embed --project-ref uhkiqfmziggrgxbamzoy
+```
+
+Then reproduce the chat message in the app.
+
+### Where to read the logs
+
+- Dashboard → **Edge Functions** → **llm-proxy** → **Logs**, or
+- Logs Explorer → search / filter for `llm_debug`
+
+You’ll get truncated JSON lines like:
+
+```text
+llm_debug {"phase":"ok","model":"gemini-flash-latest","request":{"lastUserPreview":"Need to add…"},"gemini":{"finishReason":"STOP","thoughtPartCount":1},"responsePreview":"{ \"clean_text\": … }"}
+```
+
+Fields include: last user preview, `finishReason`, thought vs answer part counts, and a response preview.
+
+### Turn debug off when finished
+
+```bash
+supabase secrets unset LLM_DEBUG --project-ref uhkiqfmziggrgxbamzoy
+# or: supabase secrets set LLM_DEBUG=0 --project-ref uhkiqfmziggrgxbamzoy
+```
+
+Leave debug off in day-to-day use — logs contain truncated user text.
+
+**Also on device:** `MemoryExtractor` logs a truncated raw payload on decode failure (`AppLogger` in Xcode console) — useful even when `LLM_DEBUG` is off.
+
+### iOS DEBUG request / response logs
+
+In **Debug** builds, `LLMClient` prints truncated request + response details via `AppLogger.debug` (Xcode console, prefix `[MindMapper][DEBUG]`):
+
+- `complete`: tier, model/fallback, maxTokens, temperature, each message role + truncated content, then response model / fallback / truncated body
+- `embed`: truncated input + dims on success
+
+These calls are **compiled out of Release** (`AppLogger.debug` is empty outside `#if DEBUG`), so App Store / production builds do not emit them. No secret or runtime flag required — use a Debug scheme while developing; archive/Release for production.

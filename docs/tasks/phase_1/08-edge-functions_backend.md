@@ -86,6 +86,8 @@ The edge functions must validate the Authorization header — only authenticated
 
 **Fallback rule:** Retry with fallback **once** per request. Do not loop. Log which model succeeded (primary vs fallback) for debugging. See `iOSApp/AGENT.md` Section 6.7.
 
+**As shipped (latency fix):** `fetchWithTimeout` (25s) → 504 treated as retryable → fallback once. Short replies (`max_tokens` ≤ 64) send `thinkingConfig.thinkingBudget = 0` when the model allows (avoids ~125s Flash free-tier hangs on ALLOWED/STORE). Redeploy `llm-proxy` + `embed` after pulling.
+
 ### Manual curl (steps 6–7, 11)
 
 Sign in with the app (or Auth API) and copy the access token. Then:

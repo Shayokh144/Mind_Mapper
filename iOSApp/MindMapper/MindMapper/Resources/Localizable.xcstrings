@@ -379,6 +379,72 @@
         }
       }
     },
+    "chat.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
+    "chat.edit_and_retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit & retry"
+          }
+        }
+      }
+    },
+    "chat.incomplete_turn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't finish that reply. Retry or edit your message."
+          }
+        }
+      }
+    },
+    "chat.editing_failed_turn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editing last message"
+          }
+        }
+      }
+    },
+    "chat.edit_failed_placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit your message and send again..."
+          }
+        }
+      }
+    },
+    "chat.save_and_retry_a11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save and retry"
+          }
+        }
+      }
+    },
     "common.close" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -936,6 +1002,105 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign out"
+          }
+        }
+      }
+    },
+    "settings.delete_account" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete my account and all data"
+          }
+        }
+      }
+    },
+    "settings.delete_account_warning_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete your account?"
+          }
+        }
+      }
+    },
+    "settings.delete_account_warning_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All conversations and memories will be permanently deleted. This cannot be undone."
+          }
+        }
+      }
+    },
+    "settings.delete_account_continue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        }
+      }
+    },
+    "settings.delete_account_confirm_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type DELETE to confirm"
+          }
+        }
+      }
+    },
+    "settings.delete_account_confirm_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This permanently erases your local MindMapper data and signs you out."
+          }
+        }
+      }
+    },
+    "settings.delete_account_confirm_placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DELETE"
+          }
+        }
+      }
+    },
+    "settings.delete_account_confirm_action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete everything"
+          }
+        }
+      }
+    },
+    "settings.delete_account_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't delete your account. Try again."
           }
         }
       }

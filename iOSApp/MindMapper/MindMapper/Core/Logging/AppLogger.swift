@@ -26,4 +26,11 @@ nonisolated enum AppLogger {
     nonisolated static func info(_ message: String) {
         NSLog("[MindMapper][INFO] %@", message)
     }
+
+    /// Verbose diagnostics — compiled out of Release / App Store builds.
+    nonisolated static func debug(_ message: String) {
+        #if DEBUG
+        NSLog("[MindMapper][DEBUG] %@", message)
+        #endif
+    }
 }

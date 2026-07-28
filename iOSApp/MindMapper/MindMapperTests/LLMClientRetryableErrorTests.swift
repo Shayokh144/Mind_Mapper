@@ -27,12 +27,12 @@ final class LLMClientRetryableErrorTests: XCTestCase {
     }
 
     func test_modelTier_geminiDevMapping() {
-        XCTAssertEqual(LLMModelTier.nano.primary, "gemini-flash-lite-latest")
-        XCTAssertEqual(LLMModelTier.nano.fallback, "gemini-3.5-flash-lite")
-        XCTAssertEqual(LLMModelTier.mini.primary, "gemini-flash-latest")
-        XCTAssertEqual(LLMModelTier.mini.fallback, "gemini-flash-lite-latest")
+        XCTAssertEqual(LLMModelTier.nano.primary, "gemini-3.5-flash-lite")
+        XCTAssertEqual(LLMModelTier.nano.fallback, "gemini-2.5-flash-lite")
+        XCTAssertEqual(LLMModelTier.mini.primary, "gemini-3.5-flash-lite")
+        XCTAssertEqual(LLMModelTier.mini.fallback, "gemini-3.6-flash")
         XCTAssertEqual(LLMModelTier.full.primary, "gemini-3.6-flash")
-        XCTAssertEqual(LLMModelTier.full.fallback, "gemini-flash-latest")
+        XCTAssertEqual(LLMModelTier.full.fallback, "gemini-2.5-flash")
         XCTAssertEqual(LLMModelTier.embed.primary, "gemini-embedding-001")
         XCTAssertEqual(LLMModelTier.embed.fallback, "gemini-embedding-001")
     }

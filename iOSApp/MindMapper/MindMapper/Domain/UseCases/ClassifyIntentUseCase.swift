@@ -14,6 +14,11 @@ nonisolated final class ClassifyIntentUseCase: ClassifyIntentUseCaseProtocol, @u
     }
 
     func execute(_ input: String) async throws -> Intent {
+        if let local = LocalMessageClassifier.intentVerdict(for: input) {
+            AppLogger.debug("ClassifyIntent local verdict=\(local.rawValue)")
+            return local
+        }
+
         let systemPrompt = """
         Classify this personal memory app message. Reply with exactly one word.
 
@@ -38,7 +43,7 @@ nonisolated final class ClassifyIntentUseCase: ClassifyIntentUseCaseProtocol, @u
                 LLMMessage(role: "system", content: systemPrompt),
                 LLMMessage(role: "user", content: input),
             ],
-            maxTokens: 5,
+            maxTokens: 16,
             temperature: 0
         )
 

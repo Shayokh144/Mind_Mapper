@@ -63,3 +63,4 @@ The `ChatBubble` component from the theme system (Task 5) handles all bubble sty
 - Menu delete → confirmation → `DeleteSessionUseCase` → `navigateBack()` (task 19 Chat delete step covered).
 - Canvas: `TypingIndicator` + `ChatBubble` previews cover light/dark; full ChatView needs a live session / simulator for end-to-end.
 - Leaving with no messages discards the draft session (`onLeaveChat` → `DeleteSessionUseCase`) so empty chats never appear in the list.
+- Incomplete last user turn (no assistant reply): **Retry** / **Edit & retry** directly below that user bubble; reopening the chat still shows this when the last stored message is from the user. Editing mode keeps a caption + cancel near the input bar.

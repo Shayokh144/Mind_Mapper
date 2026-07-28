@@ -213,6 +213,21 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(closeSession.executeCallCount, 0)
     }
 
+    func test_closeSession_whileLoading_doesNotCallUseCase() async {
+        classify.intent = .chat
+        llm.completeResult = "Hello!"
+        // Hold the pipeline in scope check so isLoading stays true.
+        scopeGuard.checkDelayNanoseconds = 200_000_000
+
+        let sendTask = Task { await sut.sendMessage("Hi there") }
+        try? await Task.sleep(nanoseconds: 30_000_000)
+        XCTAssertTrue(sut.isLoading)
+        await sut.closeSession()
+        XCTAssertEqual(closeSession.executeCallCount, 0)
+        await sendTask.value
+        XCTAssertFalse(sut.isLoading)
+    }
+
     func test_inactivity_triggersCloseSession() async {
         sut = makeSUT(inactivityInterval: 0.05)
         classify.intent = .chat

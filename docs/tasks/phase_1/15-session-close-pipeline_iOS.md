@@ -56,5 +56,6 @@ The summary memory rows created in Step 6 are what enable cross-session retrieva
 - `CloseSessionUseCase` — parallel nano title/topic + mini summary; replaces prior `[Session summary]` memories before re-embedding (safe re-close).
 - `SessionRepository.update(_:)`; `AppContainer.makeCloseSessionUseCase()`; injected via `ChatDependencies.closeSessionUseCase`.
 - `ChatViewModel.closeSession()` + 120s inactivity timer (`inactivityInterval` overridable in tests); only runs when `needsSessionClose` (after new turns or untitled session with history).
-- `Core/Lifecycle/AppLifecycleListener.swift` — `.onAppBackground { Task { await viewModel.closeSession() } }`.
+- `Core/Lifecycle/AppLifecycleListener.swift` — `.onAppBackground` uses `didEnterBackground` (not `willResignActive`, which fires when switching to Xcode and raced with send/retry).
+- `ChatViewModel.closeSession` skips while `isLoading`; inactivity timer clears its task ref before close (avoids self-`CancellationError`). `LLMClient` is `nonisolated` so nonisolated use cases do not hang on MainActor hops.
 - Tests: `CloseSessionUseCaseTests`, extended `ChatViewModelTests`.

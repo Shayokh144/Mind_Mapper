@@ -2803,6 +2803,8 @@ The architecture is deliberately designed so that adding server sync later is an
 
 ### Should a Delete Feature Exist?
 
+> **As shipped (task 19):** `DeleteSessionUseCase` / `DeleteMemoryUseCase` / `DeleteAccountUseCase` via `AppContainer`. Session list swipe + chat kebab already wired (17–18). Settings: two-step account delete (warning → type `DELETE`). `MemoryRepository.delete` restores superseded older memories. Prefer these over the `SessionDeleteService.shared` sketch below.
+
 **Yes — it is essential, not optional.** Here is why:
 
 Users will store sensitive personal information in this app — where things are hidden, gift plans, personal decisions, health notes. They must be able to delete that data. Without a delete feature:

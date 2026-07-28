@@ -1,6 +1,8 @@
 import {
   callWithFallback,
+  fetchWithTimeout,
   jsonResponse,
+  normalizeGeminiModelId,
   providerFailureResponse,
   requireAuth,
   requireGeminiKey,
@@ -141,16 +143,17 @@ async function callGeminiEmbed(args: {
   modelName: string
   input: string
 }): Promise<Response> {
+  const modelId = normalizeGeminiModelId(args.modelName)
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/${
-      encodeURIComponent(args.modelName)
+      encodeURIComponent(modelId)
     }:embedContent?key=${encodeURIComponent(args.apiKey)}`
 
-  return await fetch(url, {
+  return await fetchWithTimeout(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: `models/${args.modelName}`,
+      model: `models/${modelId}`,
       content: {
         parts: [{ text: args.input }],
       },

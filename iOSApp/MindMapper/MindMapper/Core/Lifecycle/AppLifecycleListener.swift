@@ -1,8 +1,9 @@
 import SwiftUI
 import UIKit
 
-/// Invokes `onBackground` when the app resigns active / enters background.
-/// Attach on ChatView so session close runs without navigating away.
+/// Invokes `onBackground` when the app enters background (not merely resigns active).
+/// Prefer `didEnterBackground` over `willResignActive` so Control Center / switching to
+/// Xcode does not start session-close LLM work while a chat send/retry is in flight.
 struct AppLifecycleListener: ViewModifier {
     let onBackground: () -> Void
 
@@ -10,7 +11,7 @@ struct AppLifecycleListener: ViewModifier {
         content
             .onReceive(
                 NotificationCenter.default.publisher(
-                    for: UIApplication.willResignActiveNotification
+                    for: UIApplication.didEnterBackgroundNotification
                 )
             ) { _ in
                 onBackground()

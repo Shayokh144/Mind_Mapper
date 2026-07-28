@@ -91,10 +91,15 @@ nonisolated final class MockDeleteSessionUseCase: DeleteSessionUseCaseProtocol, 
 nonisolated final class MockScopeGuard: ScopeGuardProtocol, @unchecked Sendable {
     var result: ScopeResult = .inScope
     var error: Error?
+    /// When set, `check` sleeps before returning (keeps ChatViewModel.isLoading true).
+    var checkDelayNanoseconds: UInt64 = 0
     private(set) var checkCallCount = 0
 
     func check(_ input: String) async throws -> ScopeResult {
         checkCallCount += 1
+        if checkDelayNanoseconds > 0 {
+            try await Task.sleep(nanoseconds: checkDelayNanoseconds)
+        }
         if let error { throw error }
         return result
     }
@@ -126,6 +131,15 @@ nonisolated final class MockMessageRepository: MessageRepositoryProtocol, @unche
         if let saveError { throw saveError }
         saved.append(message)
         messages.append(message)
+    }
+
+    func update(_ message: Message) async throws {
+        if let saveError { throw saveError }
+        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            messages[index] = message
+        } else {
+            messages.append(message)
+        }
     }
 
     func fetchAll(for sessionId: String) async throws -> [Message] {

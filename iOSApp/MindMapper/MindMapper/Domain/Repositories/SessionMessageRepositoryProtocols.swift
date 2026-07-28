@@ -15,5 +15,6 @@ protocol SessionRepositoryProtocol {
 
 protocol MessageRepositoryProtocol {
     func save(_ message: Message) async throws
+    func update(_ message: Message) async throws
     func fetchAll(for sessionId: String) async throws -> [Message]
 }

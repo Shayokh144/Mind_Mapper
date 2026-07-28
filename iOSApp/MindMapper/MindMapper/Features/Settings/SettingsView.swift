@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @StateObject private var viewModel: SettingsViewModel
     @State private var signOutRequestID = 0
+    @State private var deleteAccountRequestID = 0
 
     init(viewModel: SettingsViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -23,23 +24,92 @@ struct SettingsView: View {
                     ThemeBadge(text: errorMessage, icon: "xmark.circle", role: .danger)
                 }
 
-                PrimaryButton(
-                    title: L10n.Settings.signOut,
-                    isLoading: viewModel.isSigningOut
-                ) {
+                SecondaryButton(title: L10n.Settings.signOut) {
                     signOutRequestID += 1
                 }
+                .disabled(viewModel.isSigningOut || viewModel.isDeletingAccount)
+                .opacity(viewModel.isSigningOut ? 0.6 : 1)
 
                 Spacer()
+
+                DestructiveButton(
+                    title: L10n.Settings.deleteAccount,
+                    style: .outlined
+                ) {
+                    viewModel.beginDeleteAccount()
+                }
+                .disabled(viewModel.isDeletingAccount || viewModel.isSigningOut)
             }
             .padding(Spacing.xl)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.theme.background.ignoresSafeArea())
             .navigationTitle(L10n.Settings.title)
+            .confirmationDialog(
+                L10n.Settings.deleteAccountWarningTitle,
+                isPresented: $viewModel.showDeleteAccountWarning,
+                titleVisibility: .visible
+            ) {
+                Button(L10n.Settings.deleteAccountContinue, role: .destructive) {
+                    viewModel.continueDeleteAccountAfterWarning()
+                }
+                Button(L10n.Common.close, role: .cancel) {
+                    viewModel.cancelDeleteAccount()
+                }
+            } message: {
+                Text(L10n.Settings.deleteAccountWarningMessage)
+            }
+            .sheet(isPresented: $viewModel.showDeleteAccountConfirm) {
+                deleteConfirmSheet
+            }
             .task(id: signOutRequestID) {
                 guard signOutRequestID > 0 else { return }
                 await viewModel.signOut()
             }
+            .task(id: deleteAccountRequestID) {
+                guard deleteAccountRequestID > 0 else { return }
+                await viewModel.confirmDeleteAccount()
+            }
         }
+    }
+
+    private var deleteConfirmSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                Text(L10n.Settings.deleteAccountConfirmTitle)
+                    .headlineStyle()
+
+                Text(L10n.Settings.deleteAccountConfirmMessage)
+                    .secondaryStyle()
+
+                ThemeTextField(
+                    text: $viewModel.deleteConfirmationText,
+                    placeholder: L10n.Settings.deleteAccountConfirmPlaceholder,
+                    maxLength: 16
+                )
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled()
+
+                DestructiveButton(title: L10n.Settings.deleteAccountConfirmAction) {
+                    deleteAccountRequestID += 1
+                }
+                .disabled(!viewModel.canConfirmAccountDeletion || viewModel.isDeletingAccount)
+                .opacity(viewModel.canConfirmAccountDeletion ? 1 : 0.5)
+
+                Spacer()
+            }
+            .padding(Spacing.xl)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(Color.theme.background.ignoresSafeArea())
+            .navigationTitle(L10n.Settings.deleteAccount)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.Common.close) {
+                        viewModel.cancelDeleteAccount()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }

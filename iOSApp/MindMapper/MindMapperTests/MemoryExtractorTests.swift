@@ -42,7 +42,31 @@ final class MemoryExtractorTests: XCTestCase {
         let result = try await sut.extract(from: "I put my keys on the shelf")
         XCTAssertEqual(result.cleanText, "Keys are on the shelf")
         XCTAssertEqual(mock.lastTier, .mini)
-        XCTAssertEqual(mock.lastMaxTokens, 300)
+        XCTAssertEqual(mock.lastMaxTokens, 1_024)
         XCTAssertEqual(mock.lastTemperature, 0)
+    }
+
+    func test_decode_extractsJSONObjectFromPreamble() throws {
+        let raw = """
+        Here you go:
+        {"clean_text": "Water bill is on the expense list", "entities": [{"type": "category", "value": "expenses"}], "supersedes_hint": null}
+        """
+        let result = try MemoryExtractor.decode(raw)
+        XCTAssertEqual(result.cleanText, "Water bill is on the expense list")
+        XCTAssertEqual(result.entities.count, 1)
+    }
+
+    func test_extract_retriesOnceOnInvalidJSON() async throws {
+        let mock = MockLLMService()
+        mock.completeResultsQueue = [
+            "{", // truncated → decode fails
+            """
+            {"clean_text": "Water bill is on the expense list", "entities": [], "supersedes_hint": null}
+            """,
+        ]
+        let sut = MemoryExtractor(llmClient: mock)
+        let result = try await sut.extract(from: "Need to add water bill in the expense list.")
+        XCTAssertEqual(result.cleanText, "Water bill is on the expense list")
+        XCTAssertEqual(mock.completeCallCount, 2)
     }
 }

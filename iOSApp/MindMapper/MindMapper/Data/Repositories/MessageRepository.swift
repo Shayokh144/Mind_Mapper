@@ -19,6 +19,17 @@ nonisolated struct MessageRepository: MessageRepositoryProtocol {
         }
     }
 
+    func update(_ message: Message) async throws {
+        do {
+            try await database.dbQueue.write { db in
+                try MessageRecord(from: message).update(db)
+            }
+        } catch {
+            AppLogger.error("Failed to update message \(message.id)", error: error)
+            throw AppError.saveFailed(underlying: error)
+        }
+    }
+
     func fetchAll(for sessionId: String) async throws -> [Message] {
         do {
             return try await database.dbQueue.read { db in
@@ -29,6 +40,8 @@ nonisolated struct MessageRepository: MessageRepositoryProtocol {
                     .map(\.domainModel)
             }
         } catch {
+            // Cancellation is expected when a send/retry supersedes an in-flight close.
+            if error is CancellationError { throw error }
             AppLogger.error("Failed to fetch messages for session \(sessionId)", error: error)
             throw AppError.loadFailed(underlying: error)
         }

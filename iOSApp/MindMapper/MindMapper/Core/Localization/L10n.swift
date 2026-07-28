@@ -73,6 +73,15 @@ enum L10n {
     enum Settings {
         static var title: String { tr("settings.title") }
         static var signOut: String { tr("settings.sign_out") }
+        static var deleteAccount: String { tr("settings.delete_account") }
+        static var deleteAccountWarningTitle: String { tr("settings.delete_account_warning_title") }
+        static var deleteAccountWarningMessage: String { tr("settings.delete_account_warning_message") }
+        static var deleteAccountContinue: String { tr("settings.delete_account_continue") }
+        static var deleteAccountConfirmTitle: String { tr("settings.delete_account_confirm_title") }
+        static var deleteAccountConfirmMessage: String { tr("settings.delete_account_confirm_message") }
+        static var deleteAccountConfirmPlaceholder: String { tr("settings.delete_account_confirm_placeholder") }
+        static var deleteAccountConfirmAction: String { tr("settings.delete_account_confirm_action") }
+        static var deleteAccountFailed: String { tr("settings.delete_account_failed") }
     }
 
     // MARK: - Sessions
@@ -104,6 +113,12 @@ enum L10n {
         static var sendAccessibility: String { tr("chat.send_a11y") }
         static var menuAccessibility: String { tr("chat.menu_a11y") }
         static var typingAccessibility: String { tr("chat.typing_a11y") }
+        static var retry: String { tr("chat.retry") }
+        static var editAndRetry: String { tr("chat.edit_and_retry") }
+        static var incompleteTurn: String { tr("chat.incomplete_turn") }
+        static var editingFailedTurn: String { tr("chat.editing_failed_turn") }
+        static var editFailedPlaceholder: String { tr("chat.edit_failed_placeholder") }
+        static var saveAndRetryAccessibility: String { tr("chat.save_and_retry_a11y") }
 
         static func foundAcross(count: Int) -> String {
             String(format: tr("chat.found_across"), locale: .current, count)

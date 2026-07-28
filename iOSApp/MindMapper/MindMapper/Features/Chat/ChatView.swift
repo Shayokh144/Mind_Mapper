@@ -16,6 +16,7 @@ struct ChatView: View {
         VStack(spacing: 0) {
             messageList
             errorBanner
+            editingFailedTurnBar
             inputBar
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -104,6 +105,13 @@ struct ChatView: View {
             .onChange(of: viewModel.isLoading) { isLoading in
                 if isLoading {
                     scrollToBottom(proxy: proxy, id: typingIndicatorId)
+                } else {
+                    scrollToBottom(proxy: proxy)
+                }
+            }
+            .onChange(of: viewModel.canRetryLastTurn) { canRetry in
+                if canRetry {
+                    scrollToBottom(proxy: proxy)
                 }
             }
         }
@@ -118,6 +126,10 @@ struct ChatView: View {
                 isWarning: message.isWarning
             )
 
+            if shouldShowRetryActions(after: message) {
+                retryActions
+            }
+
             if shouldShowCrossSessionBadge(after: message) {
                 ThemeBadge(
                     text: L10n.Chat.foundAcross(count: viewModel.lastAnswerSessionCount),
@@ -127,6 +139,25 @@ struct ChatView: View {
                 .padding(.leading, Spacing.xs)
             }
         }
+        .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
+    }
+
+    private func shouldShowRetryActions(after message: MessageDisplayModel) -> Bool {
+        viewModel.canRetryLastTurn && message.id == viewModel.lastFailedUserMessage?.id
+    }
+
+    private var retryActions: some View {
+        HStack(spacing: Spacing.md) {
+            GhostButton(title: L10n.Chat.retry) {
+                Task { await viewModel.retryLastTurn() }
+            }
+            GhostButton(title: L10n.Chat.editAndRetry) {
+                viewModel.beginEditFailedTurn()
+                isInputFocused = true
+            }
+        }
+        .padding(.trailing, Spacing.xs)
+        .accessibilityElement(children: .contain)
     }
 
     private func shouldShowCrossSessionBadge(after message: MessageDisplayModel) -> Bool {
@@ -147,7 +178,7 @@ struct ChatView: View {
         }
     }
 
-    // MARK: - Error + input
+    // MARK: - Error / retry / input
 
     @ViewBuilder
     private var errorBanner: some View {
@@ -160,11 +191,30 @@ struct ChatView: View {
         }
     }
 
+    @ViewBuilder
+    private var editingFailedTurnBar: some View {
+        if viewModel.isEditingFailedTurn {
+            HStack(spacing: Spacing.lg) {
+                Text(L10n.Chat.editingFailedTurn)
+                    .captionStyle()
+                Spacer(minLength: 0)
+                GhostButton(title: L10n.Common.close, color: Color.theme.textSecondary) {
+                    viewModel.cancelEditFailedTurn()
+                    isInputFocused = false
+                }
+            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.bottom, Spacing.sm)
+        }
+    }
+
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: Spacing.sm) {
             ThemeTextField(
                 text: $viewModel.inputText,
-                placeholder: L10n.Chat.inputPlaceholder,
+                placeholder: viewModel.isEditingFailedTurn
+                    ? L10n.Chat.editFailedPlaceholder
+                    : L10n.Chat.inputPlaceholder,
                 maxLength: 500,
                 focus: $isInputFocused
             )
@@ -193,7 +243,11 @@ struct ChatView: View {
                     .clipShape(Circle())
             }
             .disabled(!viewModel.canSend)
-            .accessibilityLabel(L10n.Chat.sendAccessibility)
+            .accessibilityLabel(
+                viewModel.isEditingFailedTurn
+                    ? L10n.Chat.saveAndRetryAccessibility
+                    : L10n.Chat.sendAccessibility
+            )
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.md)

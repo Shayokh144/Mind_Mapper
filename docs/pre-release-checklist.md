@@ -30,9 +30,9 @@ Every LLM call uses a **primary** model. If the primary fails due to **rate limi
 
 | Tier | Primary | Fallback |
 |---|---|---|
-| nano | `gemini-flash-lite-latest` | `gemini-3.5-flash-lite` |
-| mini | `gemini-flash-latest` | `gemini-flash-lite-latest` |
-| full | `gemini-3.6-flash` | `gemini-flash-latest` |
+| nano | `gemini-3.5-flash-lite` | `gemini-2.5-flash-lite` |
+| mini | `gemini-3.5-flash-lite` | `gemini-3.6-flash` |
+| full | `gemini-3.6-flash` | `gemini-2.5-flash` |
 | embed | `gemini-embedding-001` | `gemini-embedding-001` |
 
 > Source of truth: `LLMModelConfig` in `Core/Network/LLMClient.swift`. Google retires free-tier IDs periodically.

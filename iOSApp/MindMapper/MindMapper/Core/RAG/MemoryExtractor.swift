@@ -30,10 +30,42 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
     }
 
     func extract(from rawText: String) async throws -> ExtractionResult {
+        do {
+            return try await requestExtraction(rawText)
+        } catch {
+            // Don't immediately retry quota/rate-limit — Google asks to wait ~30–60s.
+            if Self.isQuotaOrRateLimited(error) {
+                throw error
+            }
+            // One retry — Gemini Flash sometimes returns truncated / empty JSON.
+            AppLogger.error("Memory extraction decode failed; retrying once", error: error)
+            return try await requestExtraction(rawText)
+        }
+    }
+
+    private static func isQuotaOrRateLimited(_ error: Error) -> Bool {
+        if let appError = error as? AppError {
+            switch appError {
+            case .rateLimitExceeded:
+                return true
+            case let .llmCallFailed(underlying):
+                let text = String(describing: underlying).lowercased()
+                return text.contains("429")
+                    || text.contains("quota")
+                    || text.contains("resource_exhausted")
+            default:
+                break
+            }
+        }
+        let text = String(describing: error).lowercased()
+        return text.contains("429") || text.contains("quota")
+    }
+
+    private func requestExtraction(_ rawText: String) async throws -> ExtractionResult {
         let systemPrompt = """
         You are a personal memory extraction assistant.
         Extract structured information from the user message.
-        Reply ONLY with valid JSON, no other text.
+        Reply ONLY with valid JSON, no other text. Keep the JSON compact.
 
         JSON format:
         {
@@ -46,7 +78,7 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
 
         Rules:
         - clean_text must be a complete standalone fact (no pronouns like "it" or "there")
-        - Extract ALL meaningful entities
+        - Extract ALL meaningful entities (typically 1–5)
         - topic_id should be a snake_case stable identifier (e.g. "gift_wife_anniversary")
         - supersedes_hint: look for words like "instead", "actually", "changed my mind", "no longer"
         """
@@ -57,7 +89,8 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
                 LLMMessage(role: "system", content: systemPrompt),
                 LLMMessage(role: "user", content: rawText),
             ],
-            maxTokens: 300,
+            // Compact JSON; proxy also sets responseMimeType=application/json when temp=0.
+            maxTokens: 512,
             temperature: 0
         )
 
@@ -65,16 +98,32 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
     }
 
     static func decode(_ raw: String) throws -> ExtractionResult {
-        let cleaned = stripCodeFences(raw)
-        guard let data = cleaned.data(using: .utf8) else {
+        let cleaned = extractJSONObject(from: stripCodeFences(raw))
+        guard let data = cleaned.data(using: .utf8), !cleaned.isEmpty else {
+            AppLogger.error("Memory extraction JSON empty after cleanup. raw=\(raw.prefix(300))")
             throw AppError.llmResponseInvalid
         }
         do {
             return try JSONDecoder().decode(ExtractionResult.self, from: data)
         } catch {
-            AppLogger.error("Failed to decode memory extraction JSON", error: error)
+            AppLogger.error(
+                "Failed to decode memory extraction JSON. raw=\(cleaned.prefix(500))",
+                error: error
+            )
             throw AppError.llmResponseInvalid
         }
+    }
+
+    /// Pull the outermost `{ ... }` so preamble / trailing prose does not break decoding.
+    static func extractJSONObject(from text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let start = trimmed.firstIndex(of: "{"),
+              let end = trimmed.lastIndex(of: "}"),
+              start < end
+        else {
+            return trimmed
+        }
+        return String(trimmed[start...end])
     }
 
     static func stripCodeFences(_ text: String) -> String {

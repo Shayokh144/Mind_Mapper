@@ -1,6 +1,8 @@
 import {
   callWithFallback,
+  fetchWithTimeout,
   jsonResponse,
+  normalizeGeminiModelId,
   providerFailureResponse,
   requireAuth,
   requireGeminiKey,
@@ -120,6 +122,14 @@ Deno.serve(async (req) => {
   )
 
   if (!result.ok) {
+    logLlmDebug({
+      phase: "provider_error",
+      model: result.model,
+      usedFallback: result.usedFallback,
+      status: result.status,
+      request: summarizeRequest(messages, maxTokens, temperature),
+      providerBodyPreview: truncate(result.bodyText, 800),
+    })
     return providerFailureResponse(result)
   }
 
@@ -127,6 +137,13 @@ Deno.serve(async (req) => {
   try {
     providerJson = JSON.parse(result.bodyText)
   } catch {
+    logLlmDebug({
+      phase: "provider_non_json",
+      model: result.model,
+      usedFallback: result.usedFallback,
+      request: summarizeRequest(messages, maxTokens, temperature),
+      providerBodyPreview: truncate(result.bodyText, 800),
+    })
     return jsonResponse(
       {
         error: {
@@ -141,8 +158,16 @@ Deno.serve(async (req) => {
     )
   }
 
-  const text = extractGeminiText(providerJson)
-  if (text == null) {
+  const extracted = extractGeminiTextDetailed(providerJson)
+  if (extracted.text == null) {
+    logLlmDebug({
+      phase: "missing_or_truncated_text",
+      model: result.model,
+      usedFallback: result.usedFallback,
+      request: summarizeRequest(messages, maxTokens, temperature),
+      gemini: extracted.meta,
+      providerBodyPreview: truncate(result.bodyText, 800),
+    })
     return jsonResponse(
       {
         error: {
@@ -157,13 +182,22 @@ Deno.serve(async (req) => {
     )
   }
 
+  logLlmDebug({
+    phase: "ok",
+    model: result.model,
+    usedFallback: result.usedFallback,
+    request: summarizeRequest(messages, maxTokens, temperature),
+    gemini: extracted.meta,
+    responsePreview: truncate(extracted.text, 800),
+  })
+
   // OpenAI-shaped envelope so iOS can stay provider-agnostic.
   return jsonResponse({
     choices: [
       {
         message: {
           role: "assistant",
-          content: text,
+          content: extracted.text,
         },
       },
     ],
@@ -211,35 +245,166 @@ async function callGeminiGenerate(args: {
   maxTokens: number
   temperature: number
 }): Promise<Response> {
+  const modelId = normalizeGeminiModelId(args.modelName)
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/${
-      encodeURIComponent(args.modelName)
+      encodeURIComponent(modelId)
     }:generateContent?key=${encodeURIComponent(args.apiKey)}`
+
+  // Prefer minimal/no thinking for app workloads (guards, JSON extract, titles).
+  // Gemini 2.0 has no thinking — thinkingConfigFor returns undefined for those.
+  const preferMinimalThinking = true
+
+  const first = await postGemini(url, { ...args, modelName: modelId }, preferMinimalThinking)
+  if (preferMinimalThinking && first.status === 400) {
+    const bodyText = await first.text()
+    console.log(
+      `thinking_config_rejected model=${modelId} — retrying without thinkingConfig (${
+        truncate(bodyText, 160)
+      })`,
+    )
+    return await postGemini(url, { ...args, modelName: modelId }, false)
+  }
+  return first
+}
+
+async function postGemini(
+  url: string,
+  args: {
+    apiKey: string
+    modelName: string
+    contents: GeminiContent[]
+    systemInstruction?: { parts: GeminiPart[] }
+    maxTokens: number
+    temperature: number
+  },
+  preferMinimalThinking: boolean,
+): Promise<Response> {
+  const generationConfig: Record<string, unknown> = {
+    maxOutputTokens: args.maxTokens,
+    temperature: args.temperature,
+  }
+
+  const thinking = thinkingConfigFor(args.modelName, preferMinimalThinking)
+  if (thinking) {
+    generationConfig.thinkingConfig = thinking
+  }
+
+  // Structured extract / title JSON — forces compact JSON and cuts prose/thinking.
+  if (args.temperature === 0 && args.maxTokens >= 40) {
+    generationConfig.responseMimeType = "application/json"
+  }
 
   const payload: Record<string, unknown> = {
     contents: args.contents,
-    generationConfig: {
-      maxOutputTokens: args.maxTokens,
-      temperature: args.temperature,
-    },
+    generationConfig,
   }
   if (args.systemInstruction) {
     payload.systemInstruction = args.systemInstruction
   }
 
-  return await fetch(url, {
+  return await fetchWithTimeout(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   })
 }
 
+/** Gemini 2.5 uses thinkingBudget; Gemini 3.x uses thinkingLevel.
+ *  Gemini 2.0 Flash / Flash-Lite are non-thinking — omit config entirely.
+ *  Lite aliases that still advertise thinking get budget 0 when supported.
+ */
+function thinkingConfigFor(
+  modelName: string,
+  preferMinimal: boolean,
+): Record<string, unknown> | undefined {
+  if (!preferMinimal) return undefined
+  // Stable 2.0 family has no thinking in the models list — don't send thinkingConfig.
+  if (/gemini-2\.0/i.test(modelName)) return undefined
+  if (/gemini-3/i.test(modelName) || /flash-latest/i.test(modelName) || /pro-latest/i.test(modelName)) {
+    return { thinkingLevel: "minimal" }
+  }
+  // 2.5 Flash / Flash-Lite and other thinking models
+  if (/\blite\b/i.test(modelName)) {
+    return { thinkingBudget: 0 }
+  }
+  return { thinkingBudget: 0 }
+}
+
 function extractGeminiText(json: Record<string, unknown>): string | null {
+  return extractGeminiTextDetailed(json).text
+}
+
+function extractGeminiTextDetailed(json: Record<string, unknown>): {
+  text: string | null
+  meta: Record<string, unknown>
+} {
   const candidates = json.candidates as
-    | Array<{ content?: { parts?: Array<{ text?: string }> } }>
+    | Array<{
+      content?: {
+        parts?: Array<{ text?: string; thought?: boolean }>
+      }
+      finishReason?: string
+    }>
     | undefined
-  const parts = candidates?.[0]?.content?.parts
-  if (!parts?.length) return null
-  const text = parts.map((p) => p.text ?? "").join("")
-  return text.length ? text : null
+  const candidate = candidates?.[0]
+  const parts = candidate?.content?.parts ?? []
+  const thoughtCount = parts.filter((p) => p.thought === true).length
+  const answerParts = parts.filter((p) => p.thought !== true)
+  const selected = answerParts.length > 0 ? answerParts : parts
+  const text = selected.map((p) => p.text ?? "").join("")
+  const meta = {
+    finishReason: candidate?.finishReason ?? null,
+    partCount: parts.length,
+    thoughtPartCount: thoughtCount,
+    answerPartCount: answerParts.length,
+    textLength: text.length,
+  }
+
+  if (!text.length) {
+    return { text: null, meta }
+  }
+
+  // Truncated JSON is useless to the client; surface a clearer failure.
+  if (
+    candidate?.finishReason === "MAX_TOKENS" &&
+    text.trimStart().startsWith("{") &&
+    !text.trimEnd().endsWith("}")
+  ) {
+    return { text: null, meta: { ...meta, truncatedJson: true } }
+  }
+
+  return { text, meta }
+}
+
+/** Opt-in via Supabase secret `LLM_DEBUG=1` (or `true`). Off by default. */
+function isLlmDebugEnabled(): boolean {
+  const value = (Deno.env.get("LLM_DEBUG") ?? "").trim().toLowerCase()
+  return value === "1" || value === "true" || value === "yes"
+}
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text
+  return `${text.slice(0, max)}…(+${text.length - max} chars)`
+}
+
+function summarizeRequest(
+  messages: ChatMessage[],
+  maxTokens: number,
+  temperature: number,
+): Record<string, unknown> {
+  const lastUser = [...messages].reverse().find((m) =>
+    (m.role ?? "").toLowerCase() === "user"
+  )
+  return {
+    messageCount: messages.length,
+    maxTokens,
+    temperature,
+    lastUserPreview: truncate(lastUser?.content ?? "", 240),
+  }
+}
+
+function logLlmDebug(payload: Record<string, unknown>): void {
+  if (!isLlmDebugEnabled()) return
+  console.log(`llm_debug ${JSON.stringify(payload)}`)
 }

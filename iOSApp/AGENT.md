@@ -92,7 +92,9 @@ iOSApp/
 │       ├── MixedQueryUseCase.swift
 │       ├── ClassifyIntentUseCase.swift
 │       ├── CloseSessionUseCase.swift
-│       └── DeleteSessionUseCase.swift
+│       ├── DeleteSessionUseCase.swift
+│       ├── DeleteMemoryUseCase.swift
+│       └── DeleteAccountUseCase.swift
 │
 ├── Data/
 │   ├── Repositories/               ← Concrete implementations of Domain protocols
@@ -769,6 +771,8 @@ func embedAllMemories(memories: [Memory]) async throws {
 
 All LLM calls go through `LLMClient` using a **tier** (`.nano`, `.mini`, `.full`, `.embed`). Each tier maps to a **primary** and **fallback** model in `LLMModelConfig`. Use cases never pass raw model name strings.
 
+`LLMClient` is **`nonisolated`** (same idea as `DatabaseManager` / `RateLimiter`) so `nonisolated` use cases can call it without MainActor hops that hang mid-pipeline. Do not put network I/O on MainActor.
+
 **When to retry:** Primary fails with rate limit (HTTP 429) or quota exceeded (402/403, `resource_exhausted`, `insufficient_quota`) → retry **once** with fallback. If both fail → throw `AppError.llmCallFailed`.
 
 ```swift
@@ -791,12 +795,12 @@ let intent = try await LLMClient.shared.complete(
 
 | Tier | Dev primary | Dev fallback |
 |---|---|---|
-| `.nano` | `gemini-flash-lite-latest` | `gemini-3.5-flash-lite` |
-| `.mini` | `gemini-flash-latest` | `gemini-flash-lite-latest` |
-| `.full` | `gemini-3.6-flash` | `gemini-flash-latest` |
+| `.nano` | `gemini-3.5-flash-lite` (500 RPD) | `gemini-2.5-flash-lite` (20 RPD) |
+| `.mini` | `gemini-3.5-flash-lite` (500 RPD) | `gemini-3.6-flash` (20 RPD) |
+| `.full` | `gemini-3.6-flash` (20 RPD) | `gemini-2.5-flash` (20 RPD) |
 | `.embed` | `gemini-embedding-001` | `gemini-embedding-001` |
 
-> Model IDs live only in `LLMModelConfig` (`Core/Network/LLMClient.swift`). Google free-tier IDs change; older names (`gemini-2.0-flash`, `text-embedding-004`) may return `limit: 0` / `NOT_FOUND`.
+> Model IDs live only in `LLMModelConfig`. Use **exact** free-tier quota model names from AI Studio — avoid `*-latest` aliases and `gemini-2.0-flash*` (`limit: 0`).
 
 Log which model succeeded (primary vs fallback) in debug builds for troubleshooting.
 
@@ -1020,7 +1024,7 @@ final class AppContainer: ObservableObject {
         )
     }
 
-    // makeSessionListViewModel(router:) / makeDeleteSessionUseCase() / makeSettingsViewModel() — see AppContainer.swift
+    // makeSessionListViewModel(router:) / makeDeleteSessionUseCase() / makeDeleteMemoryUseCase() / makeDeleteAccountUseCase() / makeSettingsViewModel() — see AppContainer.swift
 }
 ```
 

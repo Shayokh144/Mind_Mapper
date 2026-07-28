@@ -29,4 +29,15 @@ nonisolated struct AuthRepository: AuthRepositoryProtocol {
             throw AppError.loadFailed(underlying: error)
         }
     }
+
+    func delete(id: String) async throws {
+        do {
+            try await database.dbQueue.write { db in
+                _ = try UserRecord.deleteOne(db, key: id)
+            }
+        } catch {
+            AppLogger.error("Failed to delete local user \(id)", error: error)
+            throw AppError.saveFailed(underlying: error)
+        }
+    }
 }

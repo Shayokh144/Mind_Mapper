@@ -17,40 +17,37 @@ final class ClassifyIntentUseCaseTests: XCTestCase {
         super.tearDown()
     }
 
-    func test_execute_storePath() async throws {
-        mockLLM.completeResult = "STORE"
+    func test_execute_localStore_skipsLLM() async throws {
         let intent = try await sut.execute("I put my blue T-shirt in the 3rd drawer")
         XCTAssertEqual(intent, .store)
-        assertNanoClassificationCall()
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
     }
 
-    func test_execute_queryPath() async throws {
-        mockLLM.completeResult = "QUERY"
+    func test_execute_localQuery_skipsLLM() async throws {
         let intent = try await sut.execute("Where is my blue T-shirt?")
         XCTAssertEqual(intent, .query)
-        assertNanoClassificationCall()
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
     }
 
-    func test_execute_mixedPath() async throws {
-        mockLLM.completeResult = "MIXED"
-        let intent = try await sut.execute(
-            "What gift ideas did we discuss, and suggest some more?"
-        )
-        XCTAssertEqual(intent, .mixed)
-        assertNanoClassificationCall()
-    }
-
-    func test_execute_chatPath() async throws {
-        mockLLM.completeResult = "CHAT"
+    func test_execute_localChat_skipsLLM() async throws {
         let intent = try await sut.execute("Thanks!")
         XCTAssertEqual(intent, .chat)
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
+    }
+
+    func test_execute_ambiguous_usesLLM() async throws {
+        mockLLM.completeResult = "MIXED"
+        // No ?, store verbs, memory nouns, or chat exact → falls through to LLM.
+        let intent = try await sut.execute("Could you expand on earlier thoughts with extras")
+        XCTAssertEqual(intent, .mixed)
         assertNanoClassificationCall()
     }
 
     func test_execute_unrecognisedResponse_defaultsToChat() async throws {
         mockLLM.completeResult = "MAYBE_SOMETHING"
-        let intent = try await sut.execute("Hmm not sure")
+        let intent = try await sut.execute("Hmm not sure about that situation")
         XCTAssertEqual(intent, .chat)
+        assertNanoClassificationCall()
     }
 
     func test_parseIntent_trimsAndTakesFirstWord() {
@@ -63,7 +60,7 @@ final class ClassifyIntentUseCaseTests: XCTestCase {
     private func assertNanoClassificationCall() {
         XCTAssertEqual(mockLLM.completeCallCount, 1)
         XCTAssertEqual(mockLLM.lastTier, .nano)
-        XCTAssertEqual(mockLLM.lastMaxTokens, 5)
+        XCTAssertEqual(mockLLM.lastMaxTokens, 16)
         XCTAssertEqual(mockLLM.lastTemperature, 0)
         XCTAssertEqual(mockLLM.lastMessages?.count, 2)
         XCTAssertEqual(mockLLM.lastMessages?.first?.role, "system")

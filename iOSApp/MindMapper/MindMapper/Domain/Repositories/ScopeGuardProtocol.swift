@@ -5,6 +5,6 @@ enum ScopeResult: Equatable, Sendable {
     case outOfScope(String)
 }
 
-protocol ScopeGuardProtocol {
+nonisolated protocol ScopeGuardProtocol: Sendable {
     func check(_ input: String) async throws -> ScopeResult
 }

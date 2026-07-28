@@ -188,7 +188,7 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | `SessionListView` | Chats tab root | + or row → `ChatView` via `AppRouter` |
 | `ChatView` | `Destination.chat` | Menu memories/delete; disappear/background → `closeSession` |
 | `MemoryListView` (placeholder) | Memories tab or push | — |
-| `SettingsView` | Settings tab | Sign out → Onboarding |
+| `SettingsView` | Settings tab | Sign out / delete account → Onboarding |
 | Deep-link error badge | Failed `handleAuthCallback` | Tap to clear |
 | Offline banner (top) | `networkReachability.status == .disconnected` | Auto-hides when connected |
 

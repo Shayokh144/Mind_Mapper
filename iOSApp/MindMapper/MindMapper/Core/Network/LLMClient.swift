@@ -18,10 +18,14 @@ struct LLMModelConfig: Sendable {
 
     func primary(for tier: LLMModelTier) -> String {
         switch tier {
-        // Gemini free-tier model IDs change; prefer *-latest / current Flash family.
-        // Verified working against this project's API key (2026-07): flash-lite-latest, flash-latest, 3.6-flash.
-        case .nano: return "gemini-flash-lite-latest"
-        case .mini: return "gemini-flash-latest"
+        // Free-tier quotas for this project (AI Studio, 2026-07):
+        //   gemini-3.5-flash-lite  500 RPD  ← prefer for nano/mini
+        //   gemini-2.5-flash         20 RPD
+        //   gemini-2.5-flash-lite    20 RPD
+        //   gemini-3.6-flash         20 RPD
+        // Do not use aliases (`*-latest`) or 2.0 models (free-tier limit: 0).
+        case .nano: return "gemini-3.5-flash-lite"
+        case .mini: return "gemini-3.5-flash-lite"
         case .full: return "gemini-3.6-flash"
         case .embed: return "gemini-embedding-001"
         }
@@ -29,9 +33,9 @@ struct LLMModelConfig: Sendable {
 
     func fallback(for tier: LLMModelTier) -> String {
         switch tier {
-        case .nano: return "gemini-3.5-flash-lite"
-        case .mini: return "gemini-flash-lite-latest"
-        case .full: return "gemini-flash-latest"
+        case .nano: return "gemini-2.5-flash-lite"
+        case .mini: return "gemini-3.6-flash"
+        case .full: return "gemini-2.5-flash"
         case .embed: return "gemini-embedding-001"
         }
     }
@@ -43,7 +47,9 @@ struct LLMMessage: Codable, Sendable {
 }
 
 /// Invokes Supabase Edge Functions (`llm-proxy`, `embed`). API keys stay server-side.
-final class LLMClient: LLMClientProtocol {
+/// `nonisolated` — network I/O must not hop through MainActor (nonisolated use cases
+/// calling a MainActor `LLMClient` can hang after the first successful call).
+nonisolated final class LLMClient: LLMClientProtocol, @unchecked Sendable {
     /// Set once from `AppContainer` at launch. Use cases may call `LLMClient.shared`.
     static private(set) var shared: LLMClient!
 
@@ -75,26 +81,45 @@ final class LLMClient: LLMClientProtocol {
             temperature: temperature
         )
 
+        Self.logCompleteRequest(
+            tier: tier,
+            maxTokens: maxTokens,
+            temperature: temperature,
+            messages: messages
+        )
+
         do {
             let response: CompleteResponse = try await client.functions.invoke(
                 "llm-proxy",
                 options: FunctionInvokeOptions(body: body)
             )
-            #if DEBUG
-            AppLogger.info(
-                "LLM complete tier=\(tier.rawValue) model=\(response.model_used ?? tier.primary) used_fallback=\(response.used_fallback ?? false)"
-            )
-            #endif
             guard let content = response.choices.first?.message.content,
                   !content.isEmpty
             else {
+                Self.logCompleteResponse(
+                    tier: tier,
+                    modelUsed: response.model_used,
+                    usedFallback: response.used_fallback,
+                    content: nil,
+                    note: "empty_or_missing_content"
+                )
                 throw AppError.llmResponseInvalid
             }
+            Self.logCompleteResponse(
+                tier: tier,
+                modelUsed: response.model_used,
+                usedFallback: response.used_fallback,
+                content: content,
+                note: nil
+            )
             return content
         } catch let error as AppError {
+            AppLogger.debug("LLM complete FAILED tier=\(tier.rawValue) error=\(error)")
             throw error
         } catch {
-            throw mapInvokeError(error)
+            let mapped = mapInvokeError(error)
+            AppLogger.debug("LLM complete FAILED tier=\(tier.rawValue) error=\(mapped)")
+            throw mapped
         }
     }
 
@@ -107,24 +132,41 @@ final class LLMClient: LLMClientProtocol {
             fallback_model: tier.fallback
         )
 
+        AppLogger.debug(
+            """
+            LLM embed REQUEST model=\(tier.primary) fallback=\(tier.fallback) \
+            inputChars=\(text.count) input=\(Self.truncate(text))
+            """
+        )
+
         do {
             let response: EmbedResponse = try await client.functions.invoke(
                 "embed",
                 options: FunctionInvokeOptions(body: body)
             )
-            #if DEBUG
-            AppLogger.info(
-                "LLM embed model=\(response.model_used ?? tier.primary) used_fallback=\(response.used_fallback ?? false) dims=\(response.data.first?.embedding.count ?? 0)"
-            )
-            #endif
             guard let embedding = response.data.first?.embedding, !embedding.isEmpty else {
+                AppLogger.debug(
+                    """
+                    LLM embed RESPONSE empty model=\(response.model_used ?? tier.primary) \
+                    used_fallback=\(response.used_fallback ?? false)
+                    """
+                )
                 throw AppError.embeddingFailed
             }
+            AppLogger.debug(
+                """
+                LLM embed RESPONSE model=\(response.model_used ?? tier.primary) \
+                used_fallback=\(response.used_fallback ?? false) dims=\(embedding.count)
+                """
+            )
             return embedding
         } catch let error as AppError {
+            AppLogger.debug("LLM embed FAILED error=\(error)")
             throw error
         } catch {
-            throw mapInvokeError(error, embedding: true)
+            let mapped = mapInvokeError(error, embedding: true)
+            AppLogger.debug("LLM embed FAILED error=\(mapped)")
+            throw mapped
         }
     }
 
@@ -160,7 +202,7 @@ final class LLMClient: LLMClientProtocol {
     }
 
     static func isRetryableHTTPStatus(_ status: Int) -> Bool {
-        status == 429 || status == 402 || status == 403 || status == 404
+        status == 429 || status == 402 || status == 403 || status == 404 || status == 504
     }
 
     static func isRetryableProviderPayload(_ data: Data) -> Bool {
@@ -171,8 +213,11 @@ final class LLMClient: LLMClientProtocol {
             || text.contains("insufficient_quota")
             || text.contains("quota exceeded")
             || text.contains("rate limit")
+            || text.contains("timed out")
+            || text.contains("timeout")
             || text.contains("not_found")
             || text.contains("is not found")
+            || text.contains("no longer available")
             || text.contains("\"code\":\"llm_unavailable\"")
     }
 
@@ -210,6 +255,51 @@ final class LLMClient: LLMClientProtocol {
         return embedding
             ? .embeddingFailed
             : .llmCallFailed(underlying: error)
+    }
+
+    // MARK: - DEBUG request / response logging
+
+    private static let debugPreviewLimit = 800
+
+    private static func logCompleteRequest(
+        tier: LLMModelTier,
+        maxTokens: Int,
+        temperature: Double,
+        messages: [LLMMessage]
+    ) {
+        let messageSummaries = messages.map { message in
+            "\(message.role):\(truncate(message.content))"
+        }.joined(separator: " | ")
+        AppLogger.debug(
+            """
+            LLM complete REQUEST tier=\(tier.rawValue) model=\(tier.primary) \
+            fallback=\(tier.fallback) maxTokens=\(maxTokens) temperature=\(temperature) \
+            messages=[\(messageSummaries)]
+            """
+        )
+    }
+
+    private static func logCompleteResponse(
+        tier: LLMModelTier,
+        modelUsed: String?,
+        usedFallback: Bool?,
+        content: String?,
+        note: String?
+    ) {
+        let noteSuffix = note.map { " note=\($0)" } ?? ""
+        AppLogger.debug(
+            """
+            LLM complete RESPONSE tier=\(tier.rawValue) model=\(modelUsed ?? tier.primary) \
+            used_fallback=\(usedFallback ?? false) chars=\(content?.count ?? 0) \
+            content=\(truncate(content ?? ""))\(noteSuffix)
+            """
+        )
+    }
+
+    private static func truncate(_ text: String, limit: Int = debugPreviewLimit) -> String {
+        guard text.count > limit else { return text }
+        let end = text.index(text.startIndex, offsetBy: limit)
+        return "\(text[..<end])…(+\(text.count - limit) chars)"
     }
 }
 
