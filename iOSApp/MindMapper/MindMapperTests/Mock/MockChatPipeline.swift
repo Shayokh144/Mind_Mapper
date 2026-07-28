@@ -76,6 +76,18 @@ nonisolated final class MockCloseSessionUseCase: CloseSessionUseCaseProtocol, @u
     }
 }
 
+nonisolated final class MockDeleteSessionUseCase: DeleteSessionUseCaseProtocol, @unchecked Sendable {
+    var error: Error?
+    private(set) var executeCallCount = 0
+    private(set) var lastSessionId: String?
+
+    func execute(sessionId: String) async throws {
+        executeCallCount += 1
+        lastSessionId = sessionId
+        if let error { throw error }
+    }
+}
+
 nonisolated final class MockScopeGuard: ScopeGuardProtocol, @unchecked Sendable {
     var result: ScopeResult = .inScope
     var error: Error?
@@ -155,9 +167,20 @@ nonisolated final class MockSessionRepository: SessionRepositoryProtocol, @unche
         return sessions.filter { $0.userId == userId }
     }
 
+    func fetchAllWithMessages(for userId: String) async throws -> [Session] {
+        if let fetchError { throw fetchError }
+        return sessions.filter { $0.userId == userId }
+    }
+
     func deleteCascade(id: String) async throws {
         if let fetchError { throw fetchError }
         sessions.removeAll { $0.id == id }
+    }
+
+    func purgeEmptySessions(for userId: String) async throws {
+        if let fetchError { throw fetchError }
+        _ = userId
+        // Tests that need message-aware purge can override; default is a no-op.
     }
 }
 

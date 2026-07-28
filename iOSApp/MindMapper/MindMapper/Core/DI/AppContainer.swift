@@ -172,6 +172,7 @@ final class AppContainer: ObservableObject {
             sessionId: sessionId,
             userId: userId,
             dependencies: makeChatDependencies(),
+            deleteSessionUseCase: makeDeleteSessionUseCase(),
             router: router
         )
     }

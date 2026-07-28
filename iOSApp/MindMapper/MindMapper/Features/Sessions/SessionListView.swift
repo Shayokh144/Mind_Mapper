@@ -42,21 +42,21 @@ struct SessionListView: View {
         }
         .confirmationDialog(
             L10n.Sessions.deleteTitle,
-            isPresented: Binding(
-                get: { viewModel.isDeleteConfirmationPresented },
-                set: { viewModel.isDeleteConfirmationPresented = $0 }
-            ),
+            isPresented: $viewModel.isDeleteConfirmationPresented,
             titleVisibility: .visible
         ) {
             Button(L10n.Sessions.deleteConfirm, role: .destructive) {
                 Task { await viewModel.confirmDelete() }
             }
-            Button(L10n.Common.close, role: .cancel) {}
+            Button(L10n.Common.close, role: .cancel) {
+                viewModel.cancelDelete()
+            }
         } message: {
             Text(L10n.Sessions.deleteMessage)
         }
-        .task {
-            await viewModel.loadSessions()
+        // Root stays mounted under NavigationStack — refresh when returning from chat.
+        .onAppear {
+            Task { await viewModel.loadSessions() }
         }
     }
 

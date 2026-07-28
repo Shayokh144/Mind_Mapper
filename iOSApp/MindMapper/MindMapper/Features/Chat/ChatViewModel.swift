@@ -11,12 +11,15 @@ final class ChatViewModel: ObservableObject {
     @Published var inputText = ""
     /// Distinct sessions represented in the last QUERY/MIXED answer (ThemeBadge when > 1).
     @Published private(set) var lastAnswerSessionCount = 0
+    @Published var isDeleteConfirmationPresented = false
 
     private let dependencies: ChatDependencies
+    private let deleteSessionUseCase: DeleteSessionUseCaseProtocol
     private let router: AppRouter
     private var sessionId: String
     private let userId: String
     private let inactivityInterval: TimeInterval
+    private let inputMaxLength = 500
 
     private var inactivityTask: Task<Void, Never>?
     private var isClosingSession = false
@@ -26,16 +29,34 @@ final class ChatViewModel: ObservableObject {
     /// Exposed for UI that needs to push related screens (task 16+).
     var appRouter: AppRouter { router }
 
+    var charactersRemaining: Int {
+        max(0, inputMaxLength - inputText.count)
+    }
+
+    var isCharacterCountWarning: Bool {
+        charactersRemaining < 50
+    }
+
+    var canSend: Bool {
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
+    }
+
+    var showsCrossSessionBadge: Bool {
+        lastAnswerSessionCount > 1
+    }
+
     init(
         sessionId: String,
         userId: String,
         dependencies: ChatDependencies,
+        deleteSessionUseCase: DeleteSessionUseCaseProtocol,
         router: AppRouter,
         inactivityInterval: TimeInterval = 120
     ) {
         self.sessionId = sessionId
         self.userId = userId
         self.dependencies = dependencies
+        self.deleteSessionUseCase = deleteSessionUseCase
         self.router = router
         self.inactivityInterval = inactivityInterval
     }
@@ -53,7 +74,7 @@ final class ChatViewModel: ObservableObject {
                 currentSession = session
             }
             let stored = try await dependencies.messageRepository.fetchAll(for: sessionId)
-            messages = stored.map(MessageDisplayModel.init(from:))
+            messages = stored.map { MessageDisplayModel(from: $0) }
             // Unclosed sessions with history should still close on leave / background.
             if currentSession?.title == nil, !stored.isEmpty {
                 needsSessionClose = true
@@ -85,6 +106,15 @@ final class ChatViewModel: ObservableObject {
         return session
     }
 
+    /// Triggered by ChatView `.onDisappear`.
+    func onLeaveChat() async {
+        if await isEmptyDraft() {
+            await discardEmptySession()
+            return
+        }
+        await closeSession()
+    }
+
     /// Triggered by ChatView `.onDisappear`, app background, or inactivity.
     func closeSession() async {
         guard needsSessionClose, !isClosingSession else { return }
@@ -98,6 +128,29 @@ final class ChatViewModel: ObservableObject {
             currentSession = try await dependencies.sessionRepository.fetch(id: sessionId)
         } catch {
             AppLogger.error("Session close failed for \(sessionId)", error: error)
+        }
+    }
+
+    func openMemories() {
+        router.navigate(to: .memoryList(sessionId: sessionId))
+    }
+
+    func requestDeleteConversation() {
+        isDeleteConfirmationPresented = true
+    }
+
+    func confirmDeleteConversation() async {
+        isDeleteConfirmationPresented = false
+        inactivityTask?.cancel()
+        needsSessionClose = false
+        errorMessage = nil
+
+        do {
+            try await deleteSessionUseCase.execute(sessionId: sessionId)
+            router.navigateBack()
+        } catch {
+            errorMessage = (error as? AppError)?.errorDescription
+                ?? L10n.Sessions.deleteFailed
         }
     }
 
@@ -147,8 +200,7 @@ final class ChatViewModel: ObservableObject {
             let scope = try await dependencies.scopeGuard.check(sanitised)
             if case .outOfScope(let reason) = scope {
                 dependencies.rateLimiter.recordBlocked()
-                errorMessage = reason
-                await appendAssistant(content: reason)
+                await appendAssistant(content: reason, isWarning: true)
                 return
             }
         } catch {
@@ -169,6 +221,26 @@ final class ChatViewModel: ObservableObject {
     }
 
     // MARK: - Private
+
+    private func isEmptyDraft() async -> Bool {
+        if !messages.isEmpty { return false }
+        do {
+            let stored = try await dependencies.messageRepository.fetchAll(for: sessionId)
+            return stored.isEmpty
+        } catch {
+            return true
+        }
+    }
+
+    private func discardEmptySession() async {
+        inactivityTask?.cancel()
+        needsSessionClose = false
+        do {
+            try await deleteSessionUseCase.execute(sessionId: sessionId)
+        } catch {
+            AppLogger.error("Failed to discard empty session \(sessionId)", error: error)
+        }
+    }
 
     private func markActivityForSessionClose() {
         needsSessionClose = true
@@ -231,14 +303,15 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    private func appendAssistant(content: String) async {
+    private func appendAssistant(content: String, isWarning: Bool = false) async {
         let message = Message(sessionId: sessionId, role: "assistant", content: content)
+        let display = MessageDisplayModel(from: message, isWarning: isWarning)
         do {
             try await dependencies.messageRepository.save(message)
-            messages.append(MessageDisplayModel(from: message))
+            messages.append(display)
         } catch {
             // Still show the bubble if persistence fails
-            messages.append(MessageDisplayModel(from: message))
+            messages.append(display)
             if errorMessage == nil {
                 errorMessage = mapError(error)
             }

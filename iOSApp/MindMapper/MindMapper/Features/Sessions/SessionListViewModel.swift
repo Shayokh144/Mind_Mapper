@@ -8,6 +8,7 @@ final class SessionListViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
     @Published var sessionPendingDeletion: SessionDisplayModel?
+    @Published var isDeleteConfirmationPresented = false
 
     private let sessionRepository: SessionRepositoryProtocol
     private let deleteSessionUseCase: DeleteSessionUseCaseProtocol
@@ -19,15 +20,6 @@ final class SessionListViewModel: ObservableObject {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return sessions }
         return sessions.filter { $0.title.localizedCaseInsensitiveContains(query) }
-    }
-
-    var isDeleteConfirmationPresented: Bool {
-        get { sessionPendingDeletion != nil }
-        set {
-            if !newValue {
-                sessionPendingDeletion = nil
-            }
-        }
     }
 
     init(
@@ -48,7 +40,9 @@ final class SessionListViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let fetched = try await sessionRepository.fetchAll(for: userId)
+            // Drop abandoned drafts (+ then back with no messages).
+            try await sessionRepository.purgeEmptySessions(for: userId)
+            let fetched = try await sessionRepository.fetchAllWithMessages(for: userId)
             sessions = fetched.map(SessionDisplayModel.init(from:))
         } catch {
             errorMessage = (error as? AppError)?.errorDescription
@@ -64,8 +58,8 @@ final class SessionListViewModel: ObservableObject {
         errorMessage = nil
         let session = Session(userId: userId)
         do {
+            // Persist so messages can FK to this session; list only shows chats with messages.
             try await sessionRepository.save(session)
-            sessions.insert(SessionDisplayModel(from: session), at: 0)
             router.navigate(to: .chat(sessionId: session.id))
         } catch {
             errorMessage = (error as? AppError)?.errorDescription
@@ -75,11 +69,15 @@ final class SessionListViewModel: ObservableObject {
 
     func requestDelete(_ session: SessionDisplayModel) {
         sessionPendingDeletion = session
+        isDeleteConfirmationPresented = true
     }
 
     func confirmDelete() async {
+        // Capture before the dialog dismisses — do not clear pending in the
+        // `isPresented` setter or confirm runs with a nil session.
         guard let session = sessionPendingDeletion else { return }
         sessionPendingDeletion = nil
+        isDeleteConfirmationPresented = false
         errorMessage = nil
 
         do {
@@ -90,5 +88,10 @@ final class SessionListViewModel: ObservableObject {
                 ?? L10n.Sessions.deleteFailed
             await loadSessions()
         }
+    }
+
+    func cancelDelete() {
+        sessionPendingDeletion = nil
+        isDeleteConfirmationPresented = false
     }
 }

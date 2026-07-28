@@ -54,3 +54,4 @@ The View must not import GRDB or Supabase. It must not call `DatabaseManager` di
 - Search via `filteredSessions` + `ThemeTextField`; topic icons/colors from `Color.theme` tokens.
 - Swipe-to-delete → confirmation → `DeleteSessionUseCase` (cascade via `SessionRepository.deleteCascade`). Full memory/account delete UX remains task 19.
 - `userId` is injected at VM creation (`makeSessionListViewModel`); `loadSessions()` / `startNewSession()` use that — no per-call `userId:` args.
+- Empty drafts: `+` still inserts a SQLite row (message FK), but the list uses `fetchAllWithMessages` + `purgeEmptySessions` on appear. Leaving Chat with no messages discards the draft (`ChatViewModel.onLeaveChat`). Swipe-delete uses a separate `isDeleteConfirmationPresented` flag so the pending session is not cleared when the dialog dismisses.

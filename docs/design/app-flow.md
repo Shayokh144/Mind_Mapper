@@ -147,15 +147,15 @@ flowchart TD
     R --> M["Memories tab<br/>placeholder"]
     R --> S["Settings tab<br/>email + Sign out"]
     C --> L["SessionListView<br/>+ new / tap row"]
-    L -->|router.navigate chat| Chat["ChatView shell<br/>loadSession + closeSession hooks"]
-    Chat -->|Done / navigateToRoot| L
+    L -->|router.navigate chat| Chat["ChatView<br/>bubbles + input + close hooks"]
+    Chat -->|Done / navigateBack / delete| L
     S -->|Sign out| SO["AuthManager.signOut"]
     SO -->|ok| O["isAuthenticated = false → Onboarding"]
     N["Notification .openMemory"] --> R
     N -->|resolve session_id or memory_id| Chat
 ```
 
-`RootView` is the authenticated shell. Session list / chat UIs are **shells** (polish in tasks 17–18). Sign-out lives on Settings.
+`RootView` is the authenticated shell. Session list (task 17) and chat UI (task 18) are shipped. Sign-out lives on Settings.
 
 ---
 
@@ -186,7 +186,7 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | `SetNewPasswordView` | Recovery deep link | Update password → Root |
 | `RootView` (tabs) | `isAuthenticated` | Chats / Memories / Settings; sign out → Onboarding |
 | `SessionListView` | Chats tab root | + or row → `ChatView` via `AppRouter` |
-| `ChatView` (shell) | `Destination.chat` | Done → list; disappear/background → `closeSession` |
+| `ChatView` | `Destination.chat` | Menu memories/delete; disappear/background → `closeSession` |
 | `MemoryListView` (placeholder) | Memories tab or push | — |
 | `SettingsView` | Settings tab | Sign out → Onboarding |
 | Deep-link error badge | Failed `handleAuthCallback` | Tap to clear |
@@ -199,8 +199,6 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | Item | Status |
 |------|--------|
 | `ContentView` | Xcode template leftover — not used by `@main` |
-| Full Chat UI (bubbles, input, typing) | Stub `ChatView` only — task 18 |
-| Session list polish (icons, search, swipe-delete) | Shell list only — task 17 |
 | Memories list / memory detail content | Placeholders |
 | Push notification → `.openMemory` poster | Observer ready; delegate in task 20 |
 | Sign in with Apple | Pre-release checklist |

@@ -2387,6 +2387,8 @@ struct SessionListView: View {
 
 ### Step 11.2 — Chat Screen
 
+> **As shipped (task 18):** `ChatView` + `TypingIndicator` + `ChatBubble(isWarning:)`. ScrollViewReader / LazyVStack, cross-session `ThemeBadge`, input bar (`ThemeTextField` + counter + send), kebab menu (memories / delete). Close hooks (`.onDisappear` / `.onAppBackground`) and `.task { loadSession() }` retained from task 16. Sketch below still shows `ChatOrchestrator.shared` — prefer shipped `ChatViewModel` + DI.
+
 ```swift
 // Features/Chat/ChatView.swift
 import SwiftUI

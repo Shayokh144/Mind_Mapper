@@ -98,6 +98,20 @@ enum L10n {
         static var titleFallback: String { tr("chat.title_fallback") }
         static var empty: String { tr("chat.empty") }
         static var signInRequired: String { tr("chat.sign_in_required") }
+        static var inputPlaceholder: String { tr("chat.input_placeholder") }
+        static var viewMemories: String { tr("chat.view_memories") }
+        static var deleteConversation: String { tr("chat.delete_conversation") }
+        static var sendAccessibility: String { tr("chat.send_a11y") }
+        static var menuAccessibility: String { tr("chat.menu_a11y") }
+        static var typingAccessibility: String { tr("chat.typing_a11y") }
+
+        static func foundAcross(count: Int) -> String {
+            String(format: tr("chat.found_across"), locale: .current, count)
+        }
+
+        static func charactersRemaining(_ count: Int) -> String {
+            String(format: tr("chat.characters_remaining"), locale: .current, count)
+        }
     }
 
     // MARK: - Memories

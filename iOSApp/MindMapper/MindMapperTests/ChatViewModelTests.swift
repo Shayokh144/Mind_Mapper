@@ -8,6 +8,7 @@ final class ChatViewModelTests: XCTestCase {
     private var queryMemory: MockQueryMemoryUseCase!
     private var mixedQuery: MockMixedQueryUseCase!
     private var closeSession: MockCloseSessionUseCase!
+    private var deleteSession: MockDeleteSessionUseCase!
     private var scopeGuard: MockScopeGuard!
     private var rateLimiter: MockRateLimiter!
     private var messages: MockMessageRepository!
@@ -24,6 +25,7 @@ final class ChatViewModelTests: XCTestCase {
         queryMemory = MockQueryMemoryUseCase()
         mixedQuery = MockMixedQueryUseCase()
         closeSession = MockCloseSessionUseCase()
+        deleteSession = MockDeleteSessionUseCase()
         scopeGuard = MockScopeGuard()
         rateLimiter = MockRateLimiter()
         messages = MockMessageRepository()
@@ -44,6 +46,7 @@ final class ChatViewModelTests: XCTestCase {
         queryMemory = nil
         mixedQuery = nil
         closeSession = nil
+        deleteSession = nil
         scopeGuard = nil
         rateLimiter = nil
         messages = nil
@@ -97,7 +100,7 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertFalse(sut.isLoading)
     }
 
-    func test_sendMessage_scopeBlocked_setsErrorAndSkipsUseCases() async {
+    func test_sendMessage_scopeBlocked_showsWarningBubbleAndSkipsUseCases() async {
         scopeGuard.result = .outOfScope("I can only help with your personal memories and plans.")
         classify.intent = .store
 
@@ -109,11 +112,13 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(saveMemory.executeCallCount, 0)
         XCTAssertEqual(queryMemory.executeCallCount, 0)
         XCTAssertEqual(mixedQuery.executeCallCount, 0)
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertEqual(sut.messages.last?.role, "assistant")
         XCTAssertEqual(
-            sut.errorMessage,
+            sut.messages.last?.content,
             "I can only help with your personal memories and plans."
         )
-        XCTAssertEqual(sut.messages.last?.role, "assistant")
+        XCTAssertEqual(sut.messages.last?.isWarning, true)
         XCTAssertEqual(rateLimiter.recordBlockedCallCount, 1)
         XCTAssertFalse(sut.isLoading)
     }
@@ -237,6 +242,7 @@ final class ChatViewModelTests: XCTestCase {
                 messageRepository: messages,
                 sessionRepository: sessions
             ),
+            deleteSessionUseCase: deleteSession,
             router: router,
             inactivityInterval: inactivityInterval
         )

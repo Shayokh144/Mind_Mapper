@@ -5,6 +5,7 @@ struct ThemeTextField: View {
     let placeholder: String
     var maxLength: Int = 500
     var isSecure: Bool = false
+    var focus: FocusState<Bool>.Binding? = nil
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
@@ -18,6 +19,7 @@ struct ThemeTextField: View {
             }
             .font(.theme.body)
             .foregroundStyle(Color.theme.textPrimary)
+            .modifier(OptionalFocusModifier(focus: focus))
             .onChange(of: text) { newValue in
                 if newValue.count > maxLength {
                     text = String(newValue.prefix(maxLength))
@@ -28,6 +30,18 @@ struct ThemeTextField: View {
         .padding(.vertical, Spacing.sm)
         .background(Color.theme.surfaceSecondary)
         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+    }
+}
+
+private struct OptionalFocusModifier: ViewModifier {
+    var focus: FocusState<Bool>.Binding?
+
+    func body(content: Content) -> some View {
+        if let focus {
+            content.focused(focus)
+        } else {
+            content
+        }
     }
 }
 

@@ -56,6 +56,27 @@ nonisolated struct SessionRepository: SessionRepositoryProtocol {
         }
     }
 
+    func fetchAllWithMessages(for userId: String) async throws -> [Session] {
+        do {
+            return try await database.dbQueue.read { db in
+                let sql = """
+                    SELECT sessions.* FROM sessions
+                    WHERE sessions.user_id = ?
+                      AND EXISTS (
+                        SELECT 1 FROM messages WHERE messages.session_id = sessions.id
+                      )
+                    ORDER BY sessions.updated_at DESC
+                    """
+                return try SessionRecord
+                    .fetchAll(db, sql: sql, arguments: [userId])
+                    .map(\.domainModel)
+            }
+        } catch {
+            AppLogger.error("Failed to fetch non-empty sessions for user \(userId)", error: error)
+            throw AppError.loadFailed(underlying: error)
+        }
+    }
+
     func deleteCascade(id: String) async throws {
         do {
             try await database.dbQueue.write { db in
@@ -84,6 +105,26 @@ nonisolated struct SessionRepository: SessionRepositoryProtocol {
             }
         } catch {
             AppLogger.error("Failed to delete session \(id)", error: error)
+            throw AppError.saveFailed(underlying: error)
+        }
+    }
+
+    func purgeEmptySessions(for userId: String) async throws {
+        do {
+            try await database.dbQueue.write { db in
+                try db.execute(
+                    sql: """
+                        DELETE FROM sessions
+                        WHERE user_id = ?
+                          AND NOT EXISTS (
+                            SELECT 1 FROM messages WHERE messages.session_id = sessions.id
+                          )
+                        """,
+                    arguments: [userId]
+                )
+            }
+        } catch {
+            AppLogger.error("Failed to purge empty sessions for user \(userId)", error: error)
             throw AppError.saveFailed(underlying: error)
         }
     }

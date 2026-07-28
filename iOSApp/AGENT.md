@@ -68,7 +68,7 @@ iOSApp/
 │   └── AppDelegate.swift           ← push notification registration only
 │
 ├── Core/
-│   ├── Theme/                      ← Color+Theme, Font+Theme, Spacing, Components
+│   ├── Theme/                      ← Color+Theme, Font+Theme, Spacing, Components (ChatBubble, TypingIndicator, …)
 │   ├── Database/                   ← DatabaseManager, migrations
 │   ├── Network/                    ← LLMClient, SupabaseClient wrapper
 │   ├── VectorStore/                ← Cosine similarity over local embedding blobs
@@ -160,7 +160,7 @@ struct ChatView: View {
     var body: some View {
         ScrollView {
             ForEach(viewModel.messages) { message in
-                ChatBubble(text: message.content, isUser: message.isUser)
+                ChatBubble(text: message.content, isUser: message.isUser, isWarning: message.isWarning)
             }
         }
         .task { await viewModel.loadSession() }
