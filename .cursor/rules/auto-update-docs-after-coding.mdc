@@ -1,0 +1,33 @@
+---
+description: After meaningful code changes, update docs and Cursor rules without waiting to be asked
+alwaysApply: true
+---
+
+# Auto-update docs & rules after coding
+
+When you finish a **meaningful** implementation (new type/API, DI wiring, task checklist work, architecture change), update project docs **in the same turn** — do not wait for “update docs if needed.”
+
+## Always update when relevant
+
+1. **Task doc** under `docs/tasks/` — check off completed items + short “As shipped” notes if behavior diverged from the sketch.
+2. **Follow-on task docs** — if you shipped something a later task still says to “create”, rewrite that step to **extend/wire** (e.g. AppRouter, SessionRepository).
+3. **`iOSApp/AGENT.md`** — folder tree, `AppContainer` factories, and examples that would otherwise teach the old API.
+4. **`docs/planning/execution-plan.md`** — add a brief “As shipped” / status note for the phase/step; do not leave `.shared` sketches as the only guidance when DI shipped.
+5. **`docs/design/app-flow.md`** — only if user-visible navigation/auth flow changed.
+
+## Also update `.cursor/rules` when
+
+- A **hard ban / convention** in code differs from an existing rule (e.g. DI pattern, folder placement, naming).
+- You introduce a **new always-on workflow** the agent must remember next time.
+- Keep rules **short** (one concern, actionable). Prefer editing the matching `ios-*.mdc` over adding duplicates.
+
+## Do not
+
+- Create random new markdown files the user did not ask for.
+- Rewrite entire planning docs; prefer small status/API corrections.
+- Commit doc/rule updates unless the user explicitly asks to commit.
+- Skip doc updates for tiny fixes (typos, pure refactors with no API/task impact).
+
+## Done bar
+
+Before the final reply: if code changed public APIs, factories, or task scope, related docs/rules are already updated (or you briefly state nothing was stale).

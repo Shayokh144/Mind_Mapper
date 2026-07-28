@@ -13,6 +13,8 @@ final class AppContainer: ObservableObject {
     let rateLimiter: RateLimiterProtocol
     let memoryRepository: MemoryRepositoryProtocol
     let vectorRepository: VectorRepositoryProtocol
+    let sessionRepository: SessionRepositoryProtocol
+    let messageRepository: MessageRepositoryProtocol
 
     /// Returns `nil` if Supabase URL config is invalid.
     static func make(database: DatabaseManager) -> AppContainer? {
@@ -46,6 +48,8 @@ final class AppContainer: ObservableObject {
         self.rateLimiter = RateLimiter()
         self.memoryRepository = MemoryRepository(database: database)
         self.vectorRepository = VectorRepository(database: database)
+        self.sessionRepository = SessionRepository(database: database)
+        self.messageRepository = MessageRepository(database: database)
     }
 
     func makeLoginViewModel() -> LoginViewModel {
@@ -104,5 +108,42 @@ final class AppContainer: ObservableObject {
 
     func makeQueryMemoryUseCase() -> QueryMemoryUseCaseProtocol {
         QueryMemoryUseCase(answerService: makeRAGAnswerService())
+    }
+
+    func makeMixedQueryUseCase() -> MixedQueryUseCaseProtocol {
+        MixedQueryUseCase(
+            service: MixedQueryService(
+                ragAnswerService: makeRAGAnswerService(),
+                llmClient: LLMClient.shared
+            )
+        )
+    }
+
+    func makeChatDependencies() -> ChatDependencies {
+        ChatDependencies(
+            rateLimiter: rateLimiter,
+            scopeGuard: scopeGuard,
+            classifyIntentUseCase: makeClassifyIntentUseCase(),
+            saveMemoryUseCase: makeSaveMemoryUseCase(),
+            queryMemoryUseCase: makeQueryMemoryUseCase(),
+            mixedQueryUseCase: makeMixedQueryUseCase(),
+            llmClient: LLMClient.shared,
+            messageRepository: messageRepository,
+            sessionRepository: sessionRepository
+        )
+    }
+
+    /// Requires a signed-in user. Returns `nil` when unauthenticated.
+    func makeChatViewModel(sessionId: String, router: AppRouter) -> ChatViewModel? {
+        guard let userId = authManager.currentUser?.id else {
+            AppLogger.error("makeChatViewModel called without an authenticated user")
+            return nil
+        }
+        return ChatViewModel(
+            sessionId: sessionId,
+            userId: userId,
+            dependencies: makeChatDependencies(),
+            router: router
+        )
     }
 }

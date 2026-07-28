@@ -21,8 +21,8 @@ Screens 3 and 4 in the UI mockup — Chat View in light and dark mode. Shows: na
 
 ## What To Do
 
-- [ ] **1.** Create `Features/Chat/ChatView.swift`. Receive `sessionId: String` and create `@StateObject private var viewModel: ChatViewModel` using `container.makeChatViewModel(sessionId:router:)`.
-- [ ] **2.** Build the message list using `ScrollViewReader` wrapping a `ScrollView` with a `LazyVStack`. Each `MessageDisplayModel` renders as either a user or assistant `ChatBubble` component from the theme system. Auto-scroll to the bottom when `viewModel.messages.count` changes using `proxy.scrollTo(last.id, anchor: .bottom)` wrapped in `withAnimation`.
+- [ ] **1.** Create `Features/Chat/ChatView.swift`. Receive `sessionId: String` and create the ViewModel via `container.makeChatViewModel(sessionId:router:)` — **returns optional** (`nil` if unauthenticated); guard/unwrap before `@StateObject` / `.task`.
+- [ ] **2.** Build the message list using `ScrollViewReader` wrapping a `ScrollView` with a `LazyVStack`. Each `MessageDisplayModel` (already shipped) renders as either a user or assistant `ChatBubble` component from the theme system. Auto-scroll to the bottom when `viewModel.messages.count` changes using `proxy.scrollTo(last.id, anchor: .bottom)` wrapped in `withAnimation`.
 - [ ] **3.** Add a `TypingIndicator` at the bottom of the list when `viewModel.isLoading` is true. The indicator shows three animated dots in an assistant bubble shape.
 - [ ] **4.** Add the 'Found across N conversations' `ThemeBadge` with `.accent` role and `sparkles` SF Symbol below the assistant bubble when `viewModel.lastAnswerSessionCount > 1`. This badge should only appear for QUERY and MIXED intent responses.
 - [ ] **5.** Add the error banner below the message list: when `viewModel.errorMessage` is non-nil, show a `ThemeBadge` with `.warning` role. Dismissed when the user taps it or sends a new message.
@@ -52,3 +52,6 @@ Screens 3 and 4 in the UI mockup — Chat View in light and dark mode. Shows: na
 The `ChatBubble` component from the theme system (Task 5) handles all bubble styling. Do not re-implement bubble styles in this view. The `ThemeTextField` from the theme system handles the 500-character limit automatically — do not add a second limit check here. The typing indicator animation should use `withAnimation(.easeInOut(duration: 0.5).repeatForever())` on the dot opacity.
 
 **Badge data:** `viewModel.lastAnswerSessionCount` comes from `RAGAnswer.representedSessionIds.count` set in `ChatViewModel` after QUERY/MIXED (task 14). Do not recompute session IDs in the view.
+
+**Already shipped (task 14):** `ChatViewModel`, `MessageDisplayModel`, `ChatDependencies`, `sendMessage` / `loadSession` / `startNewSession`. This task is SwiftUI only — do not reimplement the orchestrator.
+

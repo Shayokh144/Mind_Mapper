@@ -111,7 +111,7 @@ flowchart TD
 
 Notes:
 
-- Login / Forgot password are **sheets**; there is no `AppRouter` yet.
+- Login / Forgot password are **sheets**. A minimal `AppRouter` exists (task 14) but is **not yet** wired into `MindMapperApp` / tabs (task 16).
 - Login does not call `dismiss()` on success — the host swaps to `RootView`, so Onboarding (and its sheet) leave the hierarchy.
 - Errors surface as `ThemeBadge` via `AppError` on the ViewModel.
 
@@ -187,9 +187,10 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | Item | Status |
 |------|--------|
 | `ContentView` | Xcode template leftover — not used by `@main` |
-| `Features/Chat|Sessions|Memories|Settings` | Placeholder folders only |
-| `Domain/UseCases`, `Core/Guards`, `Data/Remote` | Stubs / empty |
-| `AppRouter` / `TabView` | Not implemented (task 16+) |
+| `ChatViewModel` / MixedQuery / RAG pipelines | Implemented; **no ChatView UI yet** (task 18) |
+| `AppRouter` | Type exists (`Core/Navigation/`); **not wired** into app shell (task 16) |
+| `SessionRepository` / `MessageRepository` | Implemented; session list UI not live (task 17) |
+| `Features/Sessions|Memories|Settings` views | Still placeholders |
 | Sign in with Apple | Pre-release checklist |
 
 ---

@@ -72,8 +72,8 @@ iOSApp/
 │   ├── Database/                   ← DatabaseManager, migrations
 │   ├── Network/                    ← LLMClient, SupabaseClient wrapper
 │   ├── VectorStore/                ← Cosine similarity over local embedding blobs
-│   ├── RAG/                        ← MemoryExtractor, RAGRetriever, RAGAnswerService, …
-
+│   ├── RAG/                        ← MemoryExtractor, RAGRetriever, RAGAnswerService, MixedQueryService
+│   ├── Navigation/                 ← AppRouter (NavigationStack path + sheets)
 │   ├── DI/                         ← AppContainer (dependency injection)
 │   └── Guards/                     ← InputSanitiser, ScopeGuard, RateLimiter
 │
@@ -81,11 +81,13 @@ iOSApp/
 │   ├── Models/                     ← Pure Swift structs — Message, Memory, Session
 │   ├── Repositories/               ← Protocols only — no implementation here
 │   │   ├── SessionRepositoryProtocol.swift
+│   │   ├── MessageRepositoryProtocol.swift
 │   │   ├── MemoryRepositoryProtocol.swift
 │   │   └── VectorRepositoryProtocol.swift
 │   └── UseCases/
 │       ├── SaveMemoryUseCase.swift
 │       ├── QueryMemoryUseCase.swift
+│       ├── MixedQueryUseCase.swift
 │       ├── ClassifyIntentUseCase.swift
 │       ├── CloseSessionUseCase.swift
 │       └── DeleteSessionUseCase.swift
@@ -93,6 +95,7 @@ iOSApp/
 ├── Data/
 │   ├── Repositories/               ← Concrete implementations of Domain protocols
 │   │   ├── SessionRepository.swift
+│   │   ├── MessageRepository.swift
 │   │   ├── MemoryRepository.swift
 │   │   └── VectorRepository.swift
 │   ├── Local/                      ← GRDB models, SQLite queries
@@ -110,7 +113,9 @@ iOSApp/
 │   │   └── SessionListViewModel.swift
 │   ├── Chat/
 │   │   ├── ChatView.swift
-│   │   └── ChatViewModel.swift
+│   │   ├── ChatViewModel.swift
+│   │   ├── ChatDependencies.swift
+│   │   └── MessageDisplayModel.swift
 │   ├── Memories/
 │   │   ├── MemoryListView.swift
 │   │   └── MemoryListViewModel.swift
@@ -180,54 +185,39 @@ struct ChatView: View {
 A ViewModel holds **UI state** and **triggers use cases**. It translates domain results into display-ready properties.
 
 ```swift
-// ✅ Correct ViewModel structure
+// ✅ Correct ViewModel structure (matches shipped ChatViewModel)
 @MainActor
 final class ChatViewModel: ObservableObject {
 
     // MARK: — Published UI state
-    @Published var messages: [MessageDisplayModel] = []
+    @Published private(set) var messages: [MessageDisplayModel] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var inputText = ""
+    @Published private(set) var lastAnswerSessionCount = 0
 
-    // MARK: — Dependencies (injected — never instantiated here)
-    private let saveMemoryUseCase: SaveMemoryUseCaseProtocol
-    private let queryMemoryUseCase: QueryMemoryUseCaseProtocol
-    private let classifyIntentUseCase: ClassifyIntentUseCaseProtocol
+    // MARK: — Dependencies (bundled — never instantiated here)
+    private let dependencies: ChatDependencies
+    private let router: AppRouter
+    private var sessionId: String
+    private let userId: String
 
     init(
-        saveMemoryUseCase: SaveMemoryUseCaseProtocol,
-        queryMemoryUseCase: QueryMemoryUseCaseProtocol,
-        classifyIntentUseCase: ClassifyIntentUseCaseProtocol
+        sessionId: String,
+        userId: String,
+        dependencies: ChatDependencies,
+        router: AppRouter
     ) {
-        self.saveMemoryUseCase = saveMemoryUseCase
-        self.queryMemoryUseCase = queryMemoryUseCase
-        self.classifyIntentUseCase = classifyIntentUseCase
+        self.sessionId = sessionId
+        self.userId = userId
+        self.dependencies = dependencies
+        self.router = router
     }
 
     // MARK: — User actions
-    func sendMessage() async {
-        guard !inputText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        let text = inputText
-        inputText = ""
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            let intent = try await classifyIntentUseCase.execute(text)
-            switch intent {
-            case .store:
-                let ack = try await saveMemoryUseCase.execute(text: text, sessionId: sessionId)
-                appendAssistantMessage(ack)
-            case .query:
-                let answer = try await queryMemoryUseCase.execute(question: text, sessionId: sessionId)
-                appendAssistantMessage(answer)
-            default:
-                break
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+    func sendMessage(_ rawInput: String? = nil) async {
+        // rate → sanitise → save user msg → scope → classify
+        // → STORE / QUERY / MIXED / CHAT (see Features/Chat/ChatViewModel.swift)
     }
 }
 ```
@@ -974,23 +964,40 @@ final class AppContainer: ObservableObject {
         QueryMemoryUseCase(answerService: makeRAGAnswerService())
     }
 
-    // MARK: — ViewModels (always created fresh per screen)
-    func makeChatViewModel(sessionId: String, router: AppRouter) -> ChatViewModel {
-        ChatViewModel(
+    func makeMixedQueryUseCase() -> MixedQueryUseCaseProtocol {
+        MixedQueryUseCase(
+            service: MixedQueryService(
+                ragAnswerService: makeRAGAnswerService(),
+                llmClient: LLMClient.shared
+            )
+        )
+    }
+
+    func makeChatViewModel(sessionId: String, router: AppRouter) -> ChatViewModel? {
+        guard let userId = authManager.currentUser?.id else { return nil }
+        return ChatViewModel(
             sessionId: sessionId,
-            saveMemoryUseCase: makeSaveMemoryUseCase(),
-            queryMemoryUseCase: makeQueryMemoryUseCase(),
-            classifyIntentUseCase: ClassifyIntentUseCase(llmService: llmService),
+            userId: userId,
+            dependencies: makeChatDependencies(),
             router: router
         )
     }
 
-    func makeSessionListViewModel(router: AppRouter) -> SessionListViewModel {
-        SessionListViewModel(
-            sessionRepository: sessionRepository,
-            router: router
+    private func makeChatDependencies() -> ChatDependencies {
+        ChatDependencies(
+            rateLimiter: rateLimiter,
+            scopeGuard: scopeGuard,
+            classifyIntentUseCase: makeClassifyIntentUseCase(),
+            saveMemoryUseCase: makeSaveMemoryUseCase(),
+            queryMemoryUseCase: makeQueryMemoryUseCase(),
+            mixedQueryUseCase: makeMixedQueryUseCase(),
+            llmClient: LLMClient.shared,
+            messageRepository: messageRepository,
+            sessionRepository: sessionRepository
         )
     }
+
+    // SessionListViewModel lands in task 17 — factory stub omitted here.
 }
 ```
 

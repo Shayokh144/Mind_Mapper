@@ -2069,63 +2069,20 @@ Tests: `MindMapperTests/RAGAnswerServiceTests.swift`.
 
 ---
 
+> **Status (Phase 8 + Chat orchestrator):** Shipped in task 14 — `MixedQueryService` / `MixedQueryUseCase`, `ChatViewModel` (+ `ChatDependencies`), session/message repos, minimal `AppRouter`. See `docs/tasks/phase_1/14-mixed-query-chat_iOS.md`. Chat UI (bubbles) remains task 18; Root/Tab wiring remains task 16.
+
 ### Step 8.1 — Parallel Execution + Merge
 
 Create `Core/RAG/MixedQueryService.swift`.
 
-> **Note:** Prefer DI (`init(ragAnswerService:llmClient:)`). Memory path returns `RAGAnswer` — merge on `memoryAnswer.text` and keep `representedSessionIds` for the cross-session badge. The sketch below still shows static calls for brevity.
+> **As shipped:** DI (`init(ragAnswerService:llmClient:)`). Returns `RAGAnswer` — merge on `memoryAnswer.text`, keep `representedSessionIds` for the badge.
 
 ```swift
-import Foundation
-
 struct MixedQueryService {
-
-    static func answer(
-        question: String,
-        sessionId: String,
-        userId: String
-    ) async throws -> String {
-
-        // Run both in parallel — async let
-        async let memoryAnswer = RAGAnswerService.answer(
-            question: question,
-            sessionId: sessionId,
-            userId: userId
-        )
-        async let generalKnowledge = LLMClient.shared.complete(
-            model: LLMClient.full,
-            messages: [
-                LLMMessage(role: "system", content: "You are a knowledgeable assistant. Answer this question with general knowledge only. Be concise."),
-                LLMMessage(role: "user", content: question)
-            ],
-            maxTokens: 300,
-            temperature: 0.6
-        )
-
-        let (memory, general) = try await (memoryAnswer, generalKnowledge)
-
-        // Merge both into one coherent response
-        let mergePrompt = """
-        The user asked: "\(question)"
-
-        Here is what was found in their personal memories:
-        \(memory)
-
-        Here is general knowledge on the topic:
-        \(general)
-
-        Write a single, natural response that:
-        1. Starts with what the user has already discussed or decided (from their memories)
-        2. Then adds new general suggestions or information
-        3. Keeps it conversational, not a list unless natural
-        """
-
-        return try await LLMClient.shared.complete(
-            model: LLMClient.mini,
-            messages: [LLMMessage(role: "user", content: mergePrompt)],
-            maxTokens: 400,
-            temperature: 0.5
-        )
+    func answer(question:sessionId:userId:) async throws -> RAGAnswer {
+        async let memoryAnswer = ragAnswerService.answer(...)
+        async let generalKnowledge = llmClient.complete(tier: .full, ...)
+        // merge with tier: .mini → RAGAnswer(text:merged, representedSessionIds: memoryAnswer.representedSessionIds)
     }
 }
 ```
@@ -2286,7 +2243,7 @@ struct SessionCloseService {
 
 | Task | Approx. hours |
 |---|---|
-| ChatOrchestrator.swift — route through all 5 layers | 2h |
+| ChatViewModel — route through all guard + intent layers | 2h |
 | Wire guard → intent → pipeline → save reply flow | 1h |
 | Error handling + loading state management | 1h |
 
@@ -2294,139 +2251,32 @@ struct SessionCloseService {
 
 ---
 
-### Step 10.1 — ChatOrchestrator
+### Step 10.1 — ChatViewModel (orchestrator)
 
-Create `Core/ChatOrchestrator.swift`:
+> **As shipped (task 14):** `Features/Chat/ChatViewModel.swift` — DI via `ChatDependencies`, not `ChatOrchestrator.shared`. Pipeline: rate → sanitise → save user msg → scope → classify → STORE/QUERY/MIXED/CHAT. `lastAnswerSessionCount` from `RAGAnswer.representedSessionIds`.
 
 ```swift
-import Foundation
-
 @MainActor
-class ChatOrchestrator: ObservableObject {
-    static let shared = ChatOrchestrator()
-
-    @Published var messages: [Message] = []
+final class ChatViewModel: ObservableObject {
+    @Published private(set) var messages: [MessageDisplayModel] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published private(set) var lastAnswerSessionCount = 0
 
-    var currentSession: Session?
+    func sendMessage(_ rawInput: String? = nil) async { /* guards → intent → pipeline */ }
+    func loadSession() async { /* messageRepository.fetchAll */ }
+    func startNewSession(userId:) async throws -> Session { /* sessionRepository.save */ }
+}
+```
 
+Historical sketch below kept for pipeline ordering reference only (uses outdated `.shared` APIs):
+
+```swift
+// OUTDATED SKETCH — prefer ChatViewModel + ChatDependencies above
+@MainActor
+class ChatOrchestrator: ObservableObject {
     func sendMessage(_ rawInput: String) async {
-        guard let session = currentSession,
-              let user = AuthManager.shared.currentUser else { return }
-
-        isLoading = true
-        errorMessage = nil
-
-        // ── LAYER 1: Rate limit ──
-        let rateCheck = RateLimiter.shared.check()
-        if case .throttled(let msg) = rateCheck {
-            errorMessage = msg
-            isLoading = false
-            return
-        }
-
-        // ── LAYER 2: Sanitise ──
-        let sanitiseResult = InputSanitiser.process(rawInput)
-        guard case .allowed(let sanitised) = sanitiseResult else {
-            if case .blocked(let reason) = sanitiseResult {
-                RateLimiter.shared.recordBlocked()
-                errorMessage = reason
-            }
-            isLoading = false
-            return
-        }
-
-        // Save user message immediately
-        let userMessage = Message(sessionId: session.id, role: "user", content: rawInput)
-        try? await DatabaseManager.shared.dbQueue.write { db in try userMessage.insert(db) }
-        messages.append(userMessage)
-
-        // ── LAYER 3: Scope guard ──
-        let scopeResult = try? await ScopeGuard.check(sanitised)
-        if case .outOfScope(let reason) = scopeResult {
-            RateLimiter.shared.recordBlocked()
-            let refusal = Message(sessionId: session.id, role: "assistant", content: reason)
-            try? await DatabaseManager.shared.dbQueue.write { db in try refusal.insert(db) }
-            messages.append(refusal)
-            isLoading = false
-            return
-        }
-
-        RateLimiter.shared.recordAllowed()
-
-        // ── LAYER 4: Intent classify ──
-        let intent = (try? await IntentClassifier.classify(sanitised)) ?? .chat
-
-        // ── LAYER 5: Route to correct pipeline ──
-        do {
-            let reply: String
-
-            switch intent {
-            case .store:
-                reply = try await MemorySaveService.save(
-                    rawText: sanitised,
-                    sessionId: session.id,
-                    userId: user.id
-                )
-
-            case .query:
-                reply = try await RAGAnswerService.answer(
-                    question: sanitised,
-                    sessionId: session.id,
-                    userId: user.id
-                )
-
-            case .mixed:
-                reply = try await MixedQueryService.answer(
-                    question: sanitised,
-                    sessionId: session.id,
-                    userId: user.id
-                )
-
-            case .chat:
-                reply = try await LLMClient.shared.complete(
-                    model: LLMClient.mini,
-                    messages: [
-                        LLMMessage(role: "system", content: "You are a friendly personal memory assistant. Keep casual replies brief."),
-                        LLMMessage(role: "user", content: sanitised)
-                    ],
-                    maxTokens: 100,
-                    temperature: 0.7
-                )
-            }
-
-            // Save and display assistant reply
-            let assistantMessage = Message(
-                sessionId: session.id, role: "assistant", content: reply)
-            try await DatabaseManager.shared.dbQueue.write { db in
-                try assistantMessage.insert(db)
-            }
-            messages.append(assistantMessage)
-
-        } catch {
-            errorMessage = "Something went wrong. Please try again."
-        }
-
-        isLoading = false
-    }
-
-    func loadSession(_ session: Session) async {
-        currentSession = session
-        messages = (try? await DatabaseManager.shared.dbQueue.read { db in
-            try Message
-                .filter(Column("session_id") == session.id)
-                .order(Column("created_at"))
-                .fetchAll(db)
-        }) ?? []
-    }
-
-    func startNewSession(userId: String) async throws -> Session {
-        let session = Session(userId: userId, title: "New conversation")
-        try await DatabaseManager.shared.dbQueue.write { db in try session.insert(db) }
-        currentSession = session
-        messages = []
-        return session
+        // 1 rate → 2 sanitise → 3 save user → 4 scope → 5 classify → 6 route
     }
 }
 ```
@@ -2451,7 +2301,7 @@ class ChatOrchestrator: ObservableObject {
 
 **Goal:** A clean, functional chat UI and session list.
 
----
+> **Note:** UI sketches below still show `ChatOrchestrator.shared`. Prefer shipped `ChatViewModel` + `AppRouter` + `SessionListViewModel` (tasks 14 / 16 / 17 / 18).
 
 ### Step 11.1 — Session List Screen
 
@@ -2934,7 +2784,7 @@ let result = await supabase
 | **Multi-device** | Not supported | Supported via server sync |
 | **Cost** | $0 | ~$25/month (Supabase Pro) at early scale |
 
-The architecture is deliberately designed so that adding server sync later is an **additive change** — you add new code, you do not rewrite existing code. The `user_id` on every row, the clean separation between `DatabaseManager` and `VectorStore`, and the `ChatOrchestrator` as the single entry point all make this future migration straightforward.
+The architecture is deliberately designed so that adding server sync later is an **additive change** — you add new code, you do not rewrite existing code. The `user_id` on every row, the clean separation between `DatabaseManager` and `VectorStore`, and `ChatViewModel` as the single chat entry point all make this future migration straightforward.
 
 ---
 

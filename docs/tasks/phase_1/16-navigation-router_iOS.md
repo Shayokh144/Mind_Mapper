@@ -21,9 +21,9 @@ All screens — AppRouter controls the NavigationStack that connects Onboarding 
 
 ## What To Do
 
-- [ ] **1.** Create `Core/Navigation/AppRouter.swift` as a `@MainActor final class ObservableObject`. Define `enum Destination: Hashable` with cases: `.chat(sessionId: String)`, `.memoryList(sessionId: String)`, `.settings`. Define `enum Sheet: Identifiable` with cases: `.newSession`, `.memoryDetail(memoryId: String)`. Implement `navigate(to:)`, `navigateBack()`, `navigateToRoot()`, `present(_:)`, `dismissSheet()` methods.
+- [ ] **1.** `Core/Navigation/AppRouter.swift` already exists (task 14) with `Destination`, `Sheet`, `navigate(to:)`, `navigateBack()`, `navigateToRoot()`, `present(_:)`, `dismissSheet()`. Confirm it matches this task’s API; extend only if needed — do not recreate the file.
 - [ ] **2.** Update `MindMapperApp.swift` to initialize both `AppContainer` and `AppRouter` as `@StateObject` instances. Inject both as `@EnvironmentObject` on the root view.
-- [ ] **3.** Create `Features/Root/RootView.swift` with a `TabView` containing three tabs: Chats (SessionListView), Memories (MemoryListView placeholder), Settings (SettingsView placeholder). Apply `.tint(Color.theme.accent)` to the TabView.
+- [ ] **3.** Create `Features/Root/RootView.swift` with a `TabView` containing three tabs: Chats (SessionListView), Memories (MemoryListView placeholder), Settings (SettingsView placeholder). Apply `.tint(Color.theme.accent)` to the TabView. *(Today’s `RootView` is still the temporary auth shell — replace/expand it.)*
 - [ ] **4.** Wrap the Chats tab in a `NavigationStack(path: $router.path)`. Add a `.navigationDestination(for: AppRouter.Destination.self)` modifier that switches on the destination enum and presents the correct view.
 - [ ] **5.** Add `.sheet(item: $router.presentedSheet)` to handle modal presentations.
 - [ ] **6.** In `MindMapperApp.swift`, use `authManager.isAuthenticated` to show either `OnboardingView` or `RootView`. Use a `.animation(.easeInOut)` transition between the two.
@@ -44,3 +44,5 @@ All screens — AppRouter controls the NavigationStack that connects Onboarding 
 ## 📝 Notes
 
 Never use `NavigationLink` with a destination view directly in list rows. Always use `Button` that calls `router.navigate(to:)` from the ViewModel. This ensures navigation logic stays in the ViewModel layer, not scattered across view bodies. See ../../iOSApp/AGENT.md Section 5.2.
+
+**Task 14 prerequisite:** `AppRouter` + `makeChatViewModel(sessionId:router:)` already exist. This task wires them into the live app shell (tabs + `EnvironmentObject`). Chat UI itself is task 18.

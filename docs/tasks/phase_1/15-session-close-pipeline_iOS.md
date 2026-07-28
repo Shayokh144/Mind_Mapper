@@ -24,8 +24,8 @@ Session List — session rows get their title and topic tag icon from this pipel
 - [ ] **1.** Create `Domain/UseCases/CloseSessionUseCase.swift` with protocol and implementation.
 - [ ] **2.** Implement `execute(sessionId: String) async throws` in the use case. Step 1: load all messages for the session from SQLite using `MessageRepository`. Guard that at least one message exists — if empty, return without doing anything. Step 2: build the full transcript as a string (role: content per line). Step 3: call `tier: .nano` to generate a 5-word title and one topic tag from the `TopicTag` enum. Parse the JSON response. Step 4: call `tier: .mini` to generate 3–5 bullet-point summary sentences. Step 5: save the title, topic tag, and summary to the session row in SQLite. Step 6: split the summary into individual bullets, embed each bullet separately using `LLMClient.shared.embed(text:tier: .embed)`, and save each as a new Memory row + Vector row tagged to this session.
 - [ ] **3.** Use `async let` or `TaskGroup` for the two LLM calls in steps 3 and 4 — they can run in parallel as they both only need the transcript.
-- [ ] **4.** Create `Data/Repositories/SessionRepository.swift` conforming to `SessionRepositoryProtocol`. Implement `update(_ session: Session)`, `fetchAll(for userId:)`, and `fetch(id:)`.
-- [ ] **5.** Register `CloseSessionUseCase` and `SessionRepository` in `AppContainer`.
+- [ ] **4.** Extend `SessionRepository` / `SessionRepositoryProtocol` (already shipped in task 14) with `update(_ session: Session)`. `fetchAll(for:)` and `fetch(id:)` already exist — do not recreate the repository.
+- [ ] **5.** Register `CloseSessionUseCase` in `AppContainer` (session/message repos are already wired).
 - [ ] **6.** In `ChatViewModel`, call `CloseSessionUseCase.execute()` in the `onDisappear` trigger. Also register an `AppLifecycleListener` in the chat view to trigger it when the app moves to background.
 - [ ] **7.** Add a 2-minute inactivity timer in `ChatViewModel` — if no new message is sent for 120 seconds, trigger session close automatically.
 - [ ] **8.** Verify the topic tag enum covers the mock data from the UI: 'gifts' for the gift session, 'plans' for Bali, 'wardrobe' for the T-shirt session, 'ideas' or 'plans' for the presentation outfit.
@@ -45,3 +45,10 @@ Session List — session rows get their title and topic tag icon from this pipel
 ## 📝 Notes
 
 The summary memory rows created in Step 6 are what enable cross-session retrieval. When a user asks 'What did we discuss about Bali?' days later, the Stage 1 vector search finds these summary bullets — not the original raw messages. This is why embedding them is essential, and why each bullet is embedded separately (for fine-grained retrieval precision).
+
+**Already shipped (task 14) — do not recreate:**
+- `MessageRepository` / `MessageRepositoryProtocol` (`save`, `fetchAll(for:)`)
+- `SessionRepository` / `SessionRepositoryProtocol` (`save`, `fetch(id:)`, `fetchAll(for:)`) — **extend** with `update(_ session:)` (and any metadata helpers) rather than creating a new type
+- Both are already registered on `AppContainer`
+- Wire `CloseSessionUseCase` into existing `ChatViewModel` (inject via `ChatDependencies` or a dedicated property) — do not reintroduce `ChatOrchestrator.shared`
+
