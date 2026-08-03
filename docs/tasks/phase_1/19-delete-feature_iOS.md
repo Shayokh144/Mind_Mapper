@@ -49,7 +49,9 @@ The deletion order is critical and must not be changed. SQLite foreign key const
 
 **As shipped:**
 - `DeleteSessionUseCase` / `SessionRepository.deleteCascade` (tasks 17–18 UI already wired).
-- `DeleteMemoryUseCase` → `MemoryRepository.delete` restores `supersedes_id` target (`is_superseded = 0`) then removes entities/vector/memory. Memory-list UI call site can come later; use case + unit test shipped.
+- `DeleteMemoryUseCase` → `MemoryRepository.delete` restores `supersedes_id` target (`is_superseded = 0`) then removes entities/vector/memory. **Memory list / detail UI call sites → task 22**; use case + unit test shipped.
 - `DeleteAccountUseCase` + Settings two-step confirm (warning dialog → type `DELETE` sheet) → sign-out → Onboarding via existing auth state.
 - Factories: `makeDeleteSessionUseCase()` / `makeDeleteMemoryUseCase()` / `makeDeleteAccountUseCase()`.
 - Tests: `DeleteSessionUseCaseTests`, `DeleteMemoryUseCaseTests`.
+
+**Follow-on:** Session list rename / pin / custom tags + rename `SessionListView` → `ChatSessionListView` → [task 19a](19a-chat-session-list-management_iOS.md).

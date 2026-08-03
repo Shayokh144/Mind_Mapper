@@ -2309,6 +2309,8 @@ class ChatOrchestrator: ObservableObject {
 ### Step 11.1 — Session List Screen
 
 > **As shipped (task 17):** `SessionListView` / `SessionListViewModel` with `SessionDisplayModel` + `SessionRowView`. Local search (`filteredSessions`), swipe-to-delete → confirmation → `DeleteSessionUseCase` / `SessionRepository.deleteCascade`. Factory: `AppContainer.makeSessionListViewModel(router:)` (optional). Lives inside RootView’s Chats `NavigationStack` — no nested stack. Sketch below still shows `ChatOrchestrator.shared` / direct DB reads — prefer the shipped DI path.
+>
+> **Planned (task 19a):** Rename list types to `ChatSessionListView` / `ChatSessionListViewModel` / `ChatSessionDisplayModel` / `ChatSessionRowView`. Add user rename, pin-to-top, custom topic tags (distinct color), capsule tag UI. See `docs/tasks/phase_1/19a-chat-session-list-management_iOS.md`.
 
 ```swift
 // Features/Sessions/SessionListView.swift
@@ -2387,7 +2389,7 @@ struct SessionListView: View {
 
 ### Step 11.2 — Chat Screen
 
-> **As shipped (task 18):** `ChatView` + `TypingIndicator` + `ChatBubble(isWarning:)`. ScrollViewReader / LazyVStack, cross-session `ThemeBadge`, input bar (`ThemeTextField` + counter + send), kebab menu (memories / delete). Close hooks (`.onDisappear` / `.onAppBackground`) and `.task { loadSession() }` retained from task 16. Sketch below still shows `ChatOrchestrator.shared` — prefer shipped `ChatViewModel` + DI.
+> **As shipped (task 18):** `ChatView` + `TypingIndicator` + `ChatBubble(isWarning:)`. ScrollViewReader / LazyVStack, cross-session `ThemeBadge`, input bar (`ThemeTextField` + counter + send), kebab menu (memories / delete). Close hooks (`.onDisappear` / `.onAppBackground`) and `.task { loadSession() }` retained from task 16. Sketch below still shows `ChatOrchestrator.shared` — prefer shipped `ChatViewModel` + DI. Memories list/detail UI for the kebab destination is task **22**.
 
 ```swift
 // Features/Chat/ChatView.swift
@@ -2509,6 +2511,10 @@ struct TypingIndicator: View {
 
 **✅ Checkpoint:** Full app works end-to-end:
 - Login → session list → new chat → store facts → query facts → close session → session shows title in list → reopen session → old messages are there → ask cross-session question → gets answer from multiple sessions
+
+### Step 11.3 — Memories List & Memory Detail
+
+> **Planned (task 22):** Replace `MemoryListView` / `MemoryDetailPlaceholder` with real list + detail sheet. Wire `DeleteMemoryUseCase` (task 19). Session-scoped list from chat kebab; all-memories on Memories tab. See `docs/tasks/phase_1/22-memory-list-detail-ui_iOS.md`.
 
 ---
 

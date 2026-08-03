@@ -187,7 +187,7 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | `RootView` (tabs) | `isAuthenticated` | Chats / Memories / Settings; sign out → Onboarding |
 | `SessionListView` | Chats tab root | + or row → `ChatView` via `AppRouter` |
 | `ChatView` | `Destination.chat` | Menu memories/delete; disappear/background → `closeSession` |
-| `MemoryListView` (placeholder) | Memories tab or push | — |
+| `MemoryListView` (placeholder → task 22) | Memories tab or push | — |
 | `SettingsView` | Settings tab | Sign out / delete account → Onboarding |
 | Deep-link error badge | Failed `handleAuthCallback` | Tap to clear |
 | Offline banner (top) | `networkReachability.status == .disconnected` | Auto-hides when connected |
@@ -199,7 +199,7 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | Item | Status |
 |------|--------|
 | `ContentView` | Xcode template leftover — not used by `@main` |
-| Memories list / memory detail content | Placeholders |
+| Memories list / memory detail content | Placeholders — task **22** |
 | Push notification → `.openMemory` poster | Observer ready; delegate in task 20 |
 | Sign in with Apple | Pre-release checklist |
 

@@ -54,4 +54,5 @@ Never use `NavigationLink` with a destination view directly in list rows. Always
 - Minimal `SessionListView` / `SessionListViewModel` (task 17 polishes display models, search, rows).
 - Stub `ChatView` (loads session, close on disappear/background; task 18 builds bubbles/input).
 - `SettingsView` + `SettingsViewModel` (sign out moved from old temp RootView).
-- Sheet placeholders: `NewSessionSheet`, `MemoryDetailPlaceholder`.
+- Sheet placeholders: `NewSessionSheet`, `MemoryDetailPlaceholder` *(replace detail UI in task 22)*.
+- Memories tab / pushed list still use placeholder `MemoryListView` until task **22**.

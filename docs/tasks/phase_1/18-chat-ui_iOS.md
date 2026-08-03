@@ -28,7 +28,7 @@ Screens 3 and 4 in the UI mockup — Chat View in light and dark mode. Shows: na
 - [x] **5.** Add the error banner below the message list: when `viewModel.errorMessage` is non-nil, show a `ThemeBadge` with `.warning` role. Dismissed when the user taps it or sends a new message.
 - [x] **6.** Build the input bar at the bottom: a `ThemeTextField` component with placeholder 'Tell me something or ask...', a character counter label showing `500 - inputText.count` that turns red when below 50 characters remaining, and a circular send button using `Color.theme.accent` fill with a white upward arrow SF Symbol. Disable the send button when `inputText` is empty or `viewModel.isLoading` is true.
 - [x] **7.** Add a `@FocusState` for the text field. Tapping the message list dismisses the keyboard using `.scrollDismissesKeyboard(.interactively)`.
-- [x] **8.** In the navigation bar: show the session title. Add a trailing kebab menu button (`circle.grid.2x2` or `ellipsis` SF Symbol) with a `Menu` containing: 'View memories in this chat' (navigate to MemoryListView for this session) and 'Delete conversation' (calls delete with confirmation).
+- [x] **8.** In the navigation bar: show the session title. Add a trailing kebab menu button (`circle.grid.2x2` or `ellipsis` SF Symbol) with a `Menu` containing: 'View memories in this chat' (navigate to MemoryListView for this session — **full list UI in task 22**) and 'Delete conversation' (calls delete with confirmation).
 - [x] **9.** Confirm `viewModel.closeSession()` still runs on `.onDisappear` and `.onAppBackground` (already wired in task 16 shell) — keep those hooks when rebuilding the body.
 - [x] **10.** Confirm `.task { await viewModel.loadSession() }` remains on the view when the UI is rebuilt.
 
