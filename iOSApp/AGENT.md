@@ -113,10 +113,10 @@ iOSApp/
 │   │   ├── LoginView.swift
 │   │   └── LoginViewModel.swift
 │   ├── Sessions/
-│   │   ├── SessionListView.swift
-│   │   ├── SessionListViewModel.swift
-│   │   ├── SessionDisplayModel.swift
-│   │   └── SessionRowView.swift
+│   │   ├── ChatSessionListView.swift
+│   │   ├── ChatSessionListViewModel.swift
+│   │   ├── ChatSessionDisplayModel.swift
+│   │   └── ChatSessionRowView.swift
 │   ├── Chat/
 │   │   ├── ChatView.swift
 │   │   ├── ChatViewModel.swift
@@ -500,7 +500,7 @@ struct MindMapperApp: App {
     var body: some Scene {
         WindowGroup {
             NavigationStack(path: $router.path) {
-                SessionListView()
+                ChatSessionListView(viewModel: …)
                     .navigationDestination(for: AppRouter.Destination.self) { destination in
                         switch destination {
                         case .chat(let sessionId):
@@ -572,7 +572,7 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            SessionListView()
+            ChatSessionListView(viewModel: …)
                 .tabItem {
                     Label("Chats", systemImage: "message.circle")
                 }
@@ -1024,7 +1024,7 @@ final class AppContainer: ObservableObject {
         )
     }
 
-    // makeSessionListViewModel(router:) / makeDeleteSessionUseCase() / makeDeleteMemoryUseCase() / makeDeleteAccountUseCase() / makeSettingsViewModel() — see AppContainer.swift
+    // makeChatSessionListViewModel(router:) / makeUpdateChatSessionUseCase() / makeDeleteSessionUseCase() / makeDeleteMemoryUseCase() / makeDeleteAccountUseCase() / makeSettingsViewModel() — see AppContainer.swift
 }
 ```
 
@@ -1111,12 +1111,12 @@ If a piece of state needs to be accessed more than two views deep, use `@Environ
 
 ```swift
 // ❌ Prop drilling — passing router through views that don't need it
-SessionListView(router: router)
-    → SessionRowView(router: router)
+ChatSessionListView(viewModel: …)
+    → ChatSessionRowView(…)
         → SessionMenuView(router: router)    // only this view needs it
 
 // ✅ EnvironmentObject — inject once, access anywhere
-SessionListView()
+ChatSessionListView(viewModel: …)
     .environmentObject(router)
 // Then in SessionMenuView:
 @EnvironmentObject private var router: AppRouter
@@ -1178,11 +1178,11 @@ isLoading = false
 |---|---|---|
 | Protocol | `PascalCase` + suffix `Protocol` | `MemoryRepositoryProtocol` |
 | Use Case | `VerbNounUseCase` | `SaveMemoryUseCase`, `DeleteSessionUseCase` |
-| ViewModel | `FeatureNameViewModel` | `ChatViewModel`, `SessionListViewModel` |
-| View | `FeatureNameView` | `ChatView`, `SessionListView` |
+| ViewModel | `FeatureNameViewModel` | `ChatViewModel`, `ChatSessionListViewModel` |
+| View | `FeatureNameView` | `ChatView`, `ChatSessionListView` |
 | Repository (protocol) | `NounRepositoryProtocol` | `MemoryRepositoryProtocol` |
 | Repository (impl) | `NounRepository` | `MemoryRepository` |
-| Display model | `NounDisplayModel` | `MessageDisplayModel`, `SessionDisplayModel` |
+| Display model | `NounDisplayModel` | `MessageDisplayModel`, `ChatSessionDisplayModel` |
 | Domain model | Plain noun | `Memory`, `Session`, `Message` |
 | Async function | Verb-first, no "async" suffix | `func loadMessages()`, `func sendMessage()` |
 | Bool property | `is`, `has`, `can`, `should` prefix | `isLoading`, `hasError`, `canRetry` |

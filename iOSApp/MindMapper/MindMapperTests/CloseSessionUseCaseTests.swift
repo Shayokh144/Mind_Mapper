@@ -67,7 +67,7 @@ final class CloseSessionUseCaseTests: XCTestCase {
         XCTAssertEqual(sessions.updateCallCount, 1)
         let updated = sessions.sessions.first { $0.id == session.id }
         XCTAssertEqual(updated?.title, "Anniversary Gift Ideas")
-        XCTAssertEqual(updated?.topicTag, .gifts)
+        XCTAssertEqual(updated?.topicTag, .builtIn(.gifts))
         XCTAssertTrue(updated?.summary?.contains("anniversary gift") == true)
         XCTAssertEqual(memories.saved.count, 3)
         XCTAssertEqual(vectors.savedMemoryIds.count, 3)

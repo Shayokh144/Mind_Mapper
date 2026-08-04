@@ -42,8 +42,15 @@ nonisolated final class CloseSessionUseCase: CloseSessionUseCaseProtocol, @unche
         async let summaryText = generateSummary(transcript: transcript)
         let (titleResult, summary) = try await (titleTopic, summaryText)
 
-        session.title = titleResult.title
-        session.topicTag = titleResult.topic
+        // Preserve user-edited title/tag from the list sheet — do not overwrite with LLM.
+        let hasUserTitle = !(session.title?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+        let hasUserTag = session.topicTag != nil
+        if !hasUserTitle {
+            session.title = titleResult.title
+        }
+        if !hasUserTag {
+            session.topicTag = .builtIn(titleResult.topic)
+        }
         session.summary = summary
         session.updatedAt = Date()
         try await sessionRepository.update(session)

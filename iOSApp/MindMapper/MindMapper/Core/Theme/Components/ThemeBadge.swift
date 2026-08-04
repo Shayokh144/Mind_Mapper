@@ -4,6 +4,8 @@ struct ThemeBadge: View {
     let text: String
     var icon: String? = nil
     var role: Role = .accent
+    /// When set, overrides `role.color` (e.g. custom session tags).
+    var tint: Color? = nil
 
     enum Role {
         case accent, success, warning, danger, neutral
@@ -19,6 +21,8 @@ struct ThemeBadge: View {
         }
     }
 
+    private var color: Color { tint ?? role.color }
+
     var body: some View {
         HStack(spacing: Spacing.xs) {
             if let icon {
@@ -27,12 +31,13 @@ struct ThemeBadge: View {
             }
             Text(text)
                 .font(.theme.caption)
+                .lineLimit(1)
         }
-        .foregroundStyle(role.color)
+        .foregroundStyle(color)
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
-        .background(role.color.opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: Radius.pill))
+        .background(color.opacity(0.12))
+        .clipShape(Capsule())
     }
 }
 

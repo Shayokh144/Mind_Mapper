@@ -57,7 +57,7 @@ final class DatabaseManagerTests: XCTestCase {
         let session = Session(
             userId: user.id,
             title: "Gift ideas",
-            topicTag: .gifts
+            topicTag: .builtIn(.gifts)
         )
 
         try database.dbQueue.write { db in
@@ -72,7 +72,7 @@ final class DatabaseManagerTests: XCTestCase {
         XCTAssertEqual(fetched?.id, session.id)
         XCTAssertEqual(fetched?.userId, session.userId)
         XCTAssertEqual(fetched?.title, session.title)
-        XCTAssertEqual(fetched?.topicTag, .gifts)
+        XCTAssertEqual(fetched?.topicTag, .builtIn(.gifts))
         XCTAssertEqual(fetched?.summary, session.summary)
         XCTAssertEqual(
             fetched?.createdAt.timeIntervalSince1970 ?? 0,
@@ -90,7 +90,7 @@ final class DatabaseManagerTests: XCTestCase {
 
     func test_insertMemoryWithEntities_andForeignKeyIntegrity() throws {
         let user = User(email: "fk@example.com")
-        let session = Session(userId: user.id, topicTag: .wardrobe)
+        let session = Session(userId: user.id, topicTag: .builtIn(.wardrobe))
         let memory = Memory(
             sessionId: session.id,
             userId: user.id,

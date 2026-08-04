@@ -81,17 +81,22 @@ final class AppContainer: ObservableObject {
     }
 
     /// Requires a signed-in user. Returns `nil` when unauthenticated.
-    func makeSessionListViewModel(router: AppRouter) -> SessionListViewModel? {
+    func makeChatSessionListViewModel(router: AppRouter) -> ChatSessionListViewModel? {
         guard let userId = authManager.currentUser?.id else {
-            AppLogger.error("makeSessionListViewModel called without an authenticated user")
+            AppLogger.error("makeChatSessionListViewModel called without an authenticated user")
             return nil
         }
-        return SessionListViewModel(
+        return ChatSessionListViewModel(
             userId: userId,
             sessionRepository: sessionRepository,
             deleteSessionUseCase: makeDeleteSessionUseCase(),
+            updateChatSessionUseCase: makeUpdateChatSessionUseCase(),
             router: router
         )
+    }
+
+    func makeUpdateChatSessionUseCase() -> UpdateChatSessionUseCaseProtocol {
+        UpdateChatSessionUseCase(sessionRepository: sessionRepository)
     }
 
     func makeDeleteSessionUseCase() -> DeleteSessionUseCaseProtocol {

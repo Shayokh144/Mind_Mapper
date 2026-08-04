@@ -15,7 +15,7 @@ Task 6 (database / `Session` / migrations), Task 17 (session list UI), Task 19 (
 📄 `../planning/execution-plan.md` → Phase 11 — Step 11.1 Session List Screen | `iOSApp/AGENT.md` › Section 3.1 / 3.3 (thin Views, display models)
 
 ## Related UI
-Chats tab root list (`ChatSessionListView`): row capsules for topic tags, swipe / context menu for rename + pin, sheet or alert to create a custom tag. Built-in tags stay the fixed set from `Session.TopicTag` (wardrobe, plans, locations, people, ideas, gifts, work, health, other).
+Chats tab root list (`ChatSessionListView`): row capsules for topic tags, row kebab (⋯) → rename / update tag → shared bottom sheet (title + tag), leading swipe to pin. Built-in tags stay the fixed set from `Session.TopicTag`; free-form custom tags use `Session.Topic.custom`.
 
 ---
 
@@ -23,7 +23,7 @@ Chats tab root list (`ChatSessionListView`): row capsules for topic tags, swipe 
 
 ### Rename types (SessionList → ChatSession)
 
-- [ ] **1.** Rename `SessionListView` → `ChatSessionListView` (file + type). Rename related presentation types consistently:
+- [x] **1.** Rename `SessionListView` → `ChatSessionListView` (file + type). Rename related presentation types consistently:
       - `SessionListViewModel` → `ChatSessionListViewModel`
       - `SessionDisplayModel` → `ChatSessionDisplayModel`
       - `SessionRowView` → `ChatSessionRowView`
@@ -33,64 +33,54 @@ Chats tab root list (`ChatSessionListView`): row capsules for topic tags, swipe 
 
 ### Domain + persistence (pin + custom tags)
 
-- [ ] **2.** Add pin support on `Session`: `isPinned: Bool` (default `false`). GRDB migration (e.g. `v2_session_pin_and_custom_tag`) adding `is_pinned INTEGER NOT NULL DEFAULT 0` on `sessions`. Update `SessionRecord` ↔ domain mapping. Sort list: **pinned first**, then `updatedAt` descending (existing order for unpinned).
+- [x] **2.** Add pin support on `Session`: `isPinned: Bool` (default `false`). GRDB migration `v2_session_pin` adding `is_pinned`. Update `SessionRecord` ↔ domain mapping. Sort: **pinned first**, then `updatedAt` descending (multiple pins allowed).
 
-- [ ] **3.** Support **user-created topic tags** beyond the built-in `Session.TopicTag` cases. Today `SessionRecord.topicTag` is a `String?` but domain maps only known enum raw values — unknown strings become `nil`. Fix that:
-      - Prefer a small domain representation, e.g. built-in `TopicTag` **or** custom `String` (trimmed, non-empty, reasonable max length).
-      - Persist custom labels in the existing `topic_tag` column (free-form string). Built-ins keep writing enum `rawValue` (CloseSessionUseCase unchanged for LLM-assigned tags).
-      - Close / LLM path may still overwrite with a built-in tag later — document that in Notes; user can re-apply a custom tag after close if needed (or preserve custom when present — pick one and stick to it).
+- [x] **3.** Support **user-created topic tags** beyond the built-in `Session.TopicTag` cases via `Session.Topic` (`.builtIn` / `.custom`). Persist in `topic_tag` column. CloseSessionUseCase still assigns built-ins from the LLM, but **preserves** an existing user title/tag.
 
-- [ ] **4.** Thin use cases (or one metadata use case with clear methods) + `AppContainer` factories:
-      - Rename session title (`execute(sessionId:title:)`)
-      - Toggle / set pin (`execute(sessionId:isPinned:)`)
-      - Set topic tag (built-in or custom) (`execute(sessionId:tag:)`)
-      All persist via `SessionRepository.update` (or focused repo helpers). No DB calls from the View.
+- [x] **4.** `UpdateChatSessionUseCase` + `AppContainer.makeUpdateChatSessionUseCase()`:
+      - `updateMetadata(sessionId:title:topicTag:)` — **no LLM**
+      - `setPinned(sessionId:isPinned:)`
 
 ### List UI / ViewModel
 
-- [ ] **5.** Extend `ChatSessionListViewModel`: load/sort with pins; `rename` / `togglePin` / `setTopicTag` (or equivalent); confirmation / sheet presentation state. Keep swipe-to-delete + confirmation from tasks 17 / 19.
+- [x] **5.** Extend `ChatSessionListViewModel`: load/sort with pins; edit sheet + pin; keep swipe-to-delete + confirmation.
 
-- [ ] **6.** User can **rename** a session (edit title). Prefer context menu and/or swipe action → alert / sheet with `ThemeTextField` + Save / Cancel. Empty title → fall back to “New conversation” display (same as today). Persist trimmed title; bump `updatedAt`.
+- [x] **6–8.** **As shipped UI (per product):** Each row has a vertical ⋯ menu with **Rename chat session** and **Update/add session tag**. Both open the **same** bottom sheet with **two fields** (title + tag), prefilled when data exists, placeholders when empty. Save persists directly (no LLM). If **both** fields are empty, Save is disabled / no-op. Custom text that matches a built-in raw value maps to `.builtIn`; otherwise `.custom` with distinct `Color.theme.splashBackground` tint.
 
-- [ ] **7.** User can **pin** a session to the top (and unpin). Leading swipe and/or context menu with pin / unpin. Show a small pin affordance on the row when pinned (SF Symbol `pin.fill`, theme tokens only). Re-sort immediately after toggle.
+- [x] **7.** Pin via **leading swipe** (multiple pins OK; pinned group sorted by `updatedAt`). Pin icon on row when pinned.
 
-- [ ] **8.** User can assign a **built-in** tag or **create a custom** tag (text entry). UI: picker / sheet listing built-in tags + “Create tag…” field. Validate length (reuse input-guard style limits if a constant exists; otherwise a sensible cap e.g. 24–32 chars). Custom tags must use a **distinct** color from all built-in `iconColor` mappings in `ChatSessionDisplayModel` (dedicated theme token or a clear unused semantic color — no raw hex).
+- [x] **9.** Topic tags render as **capsule** `ThemeBadge` (optional `tint`).
 
-- [ ] **9.** Render **all** topic tags as **capsule** UI on the row (and in any tag picker chips). Prefer composing `ThemeBadge` with capsule clipping (`Capsule()` / `Radius.pill`) — do not leave tags as plain caption `Text`. Built-in tags keep existing icon + color mapping; custom tags use the dedicated custom color (icon can be generic, e.g. `tag` / `bubble.left`).
-
-- [ ] **10.** Update `L10n.Sessions` (rename / pin / unpin / tag / create tag / validation errors). Update `docs/design/app-flow.md` screen name if it still says `SessionListView`. Update `iOSApp/AGENT.md` folder tree + factory names. Brief “Planned → As shipped” note on Step 11.1 in the execution plan when done.
+- [x] **10.** `L10n.Sessions` keys, `app-flow.md`, `AGENT.md`, execution-plan Step 11.1 note.
 
 ---
 
 ## ✅ Done When
 
-- [ ] Types renamed: `ChatSessionListView` / `ChatSessionListViewModel` / `ChatSessionDisplayModel` / `ChatSessionRowView` + factory; app builds; delete swipe still works.
-- [ ] User can rename a session title; list shows the new title after save.
-- [ ] User can pin / unpin; pinned sessions stay at the top across reload.
-- [ ] User can pick a built-in tag **or** create a custom tag; custom tags survive reload (not dropped by enum mapping).
-- [ ] Custom tag color is visually distinct from built-in tag colors.
-- [ ] Every visible topic tag uses capsule / pill chrome (not plain text).
-- [ ] Views stay thin: theme tokens only; no GRDB / `DatabaseManager` in Views.
+- [x] Types renamed: `ChatSessionListView` / `ChatSessionListViewModel` / `ChatSessionDisplayModel` / `ChatSessionRowView` + factory; delete swipe still works.
+- [x] User can edit title/tag via ⋯ → shared sheet; no LLM on save.
+- [x] User can pin / unpin; multiple pinned sessions stay on top, ordered by last updated.
+- [x] Custom tags survive reload; distinct color from built-ins.
+- [x] Topic tags use capsule chrome.
+- [x] Views stay thin: theme tokens only; no GRDB / `DatabaseManager` in Views.
 
 ---
 
 ## 📝 Notes
 
-**Already shipped (extend, do not recreate):**
+**As shipped:**
+- Edit UX is one sheet (title + tag), not separate rename/tag pickers.
+- `CloseSessionUseCase` skips LLM title/tag overwrite when the session already has a user title or tag (summary still generated).
+- Custom tag color: `Color.theme.splashBackground`.
+- Pin: leading swipe only (not in the ⋯ menu).
+
+**Already shipped (do not recreate):**
 - List shell, search, empty state, `+` new session, swipe delete → confirmation → `DeleteSessionUseCase` (tasks 17 / 19).
 - `SessionRepository.fetchAll` / `save` / `update` / `deleteCascade`.
-- Built-in `Session.TopicTag` + `CloseSessionUseCase` LLM title/tag assignment.
-- `ThemeBadge` (pill radius) — good base for capsule tags.
+- Built-in `Session.TopicTag` + close-session LLM path.
+- `ThemeBadge` — extended with `tint` + `Capsule()`.
 
 **Out of scope:**
 - Syncing pins/tags to Supabase.
 - Renaming the domain `Session` type or delete use cases.
-- Memory list UI (task 22), portfolio empty-state polish (task 21 — update that doc’s type names if it still says `SessionListView`).
-
-**Suggested row actions:**
-| Action | UI |
-|---|---|
-| Delete | Trailing swipe (existing) |
-| Pin / Unpin | Leading swipe and/or context menu |
-| Rename | Context menu → alert/sheet |
-| Tag | Context menu → sheet (built-ins + create custom) |
+- Memory list UI (task 22).

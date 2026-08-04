@@ -146,7 +146,7 @@ flowchart TD
     R["RootView TabView<br/>tint = Color.theme.accent"] --> C["Chats tab<br/>NavigationStack path = router.path"]
     R --> M["Memories tab<br/>placeholder"]
     R --> S["Settings tab<br/>email + Sign out"]
-    C --> L["SessionListView<br/>+ new / tap row"]
+    C --> L["ChatSessionListView<br/>+ new / kebab edit / pin / tap row"]
     L -->|router.navigate chat| Chat["ChatView<br/>bubbles + input + close hooks"]
     Chat -->|Done / navigateBack / delete| L
     S -->|Sign out| SO["AuthManager.signOut"]
@@ -185,7 +185,7 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | `ForgotPasswordView` | Login sheet | Success message; email deep link later |
 | `SetNewPasswordView` | Recovery deep link | Update password → Root |
 | `RootView` (tabs) | `isAuthenticated` | Chats / Memories / Settings; sign out → Onboarding |
-| `SessionListView` | Chats tab root | + or row → `ChatView` via `AppRouter` |
+| `ChatSessionListView` | Chats tab root | + / kebab (rename·tag) / pin swipe / row → `ChatView` via `AppRouter` |
 | `ChatView` | `Destination.chat` | Menu memories/delete; disappear/background → `closeSession` |
 | `MemoryListView` (placeholder → task 22) | Memories tab or push | — |
 | `SettingsView` | Settings tab | Sign out / delete account → Onboarding |

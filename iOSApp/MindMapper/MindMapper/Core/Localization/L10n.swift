@@ -99,6 +99,21 @@ enum L10n {
         static var deleteMessage: String { tr("sessions.delete_message") }
         static var deleteConfirm: String { tr("sessions.delete_confirm") }
         static var deleteFailed: String { tr("sessions.delete_failed") }
+        static var menuAccessibility: String { tr("sessions.menu_a11y") }
+        static var menuRename: String { tr("sessions.menu_rename") }
+        static var menuUpdateTag: String { tr("sessions.menu_update_tag") }
+        static var editSheetTitle: String { tr("sessions.edit_sheet_title") }
+        static var editTitleLabel: String { tr("sessions.edit_title_label") }
+        static var editTagLabel: String { tr("sessions.edit_tag_label") }
+        static var editTitlePlaceholder: String { tr("sessions.edit_title_placeholder") }
+        static var editTagPlaceholder: String { tr("sessions.edit_tag_placeholder") }
+        static var editSave: String { tr("sessions.edit_save") }
+        static var editEmptyError: String { tr("sessions.edit_empty_error") }
+        static var editSaveFailed: String { tr("sessions.edit_save_failed") }
+        static var pinAction: String { tr("sessions.pin_action") }
+        static var unpinAction: String { tr("sessions.unpin_action") }
+        static var pinFailed: String { tr("sessions.pin_failed") }
+        static var pinnedAccessibility: String { tr("sessions.pinned_a11y") }
     }
 
     // MARK: - Chat

@@ -40,6 +40,7 @@ nonisolated struct SessionRecord: Codable, FetchableRecord, PersistableRecord, E
     var title: String?
     var topicTag: String?
     var summary: String?
+    var isPinned: Bool
     var createdAt: Date
     var updatedAt: Date
 
@@ -51,8 +52,9 @@ nonisolated struct SessionRecord: Codable, FetchableRecord, PersistableRecord, E
         id = session.id
         userId = session.userId
         title = session.title
-        topicTag = session.topicTag?.rawValue
+        topicTag = session.topicTag?.storageValue
         summary = session.summary
+        isPinned = session.isPinned
         createdAt = session.createdAt
         updatedAt = session.updatedAt
     }
@@ -62,8 +64,9 @@ nonisolated struct SessionRecord: Codable, FetchableRecord, PersistableRecord, E
             id: id,
             userId: userId,
             title: title,
-            topicTag: topicTag.flatMap(Session.TopicTag.init(rawValue:)),
+            topicTag: topicTag.flatMap(Session.Topic.init(stored:)),
             summary: summary,
+            isPinned: isPinned,
             createdAt: createdAt,
             updatedAt: updatedAt
         )

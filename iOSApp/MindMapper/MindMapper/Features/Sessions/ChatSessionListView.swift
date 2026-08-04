@@ -1,9 +1,9 @@
 import SwiftUI
 
-struct SessionListView: View {
-    @StateObject private var viewModel: SessionListViewModel
+struct ChatSessionListView: View {
+    @StateObject private var viewModel: ChatSessionListViewModel
 
-    init(viewModel: SessionListViewModel) {
+    init(viewModel: ChatSessionListViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
     }
 
@@ -54,6 +54,13 @@ struct SessionListView: View {
         } message: {
             Text(L10n.Sessions.deleteMessage)
         }
+        .sheet(isPresented: $viewModel.isEditSheetPresented, onDismiss: {
+            viewModel.clearEditState()
+        }) {
+            editSessionSheet
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
         // Root stays mounted under NavigationStack — refresh when returning from chat.
         .onAppear {
             Task { await viewModel.loadSessions() }
@@ -91,12 +98,12 @@ struct SessionListView: View {
             }
 
             ForEach(viewModel.filteredSessions) { session in
-                Button {
-                    viewModel.openSession(session)
-                } label: {
-                    SessionRowView(session: session)
-                }
-                .buttonStyle(.plain)
+                ChatSessionRowView(
+                    session: session,
+                    onOpen: { viewModel.openSession(session) },
+                    onMenuRename: { viewModel.presentEditSheet(for: session) },
+                    onMenuUpdateTag: { viewModel.presentEditSheet(for: session) }
+                )
                 .listRowBackground(Color.theme.background)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
@@ -104,10 +111,70 @@ struct SessionListView: View {
                     } label: {
                         Label(L10n.Sessions.deleteAction, systemImage: "trash")
                     }
+                    .tint(Color.theme.danger)
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    Button {
+                        Task { await viewModel.togglePin(session) }
+                    } label: {
+                        Label(
+                            session.isPinned ? L10n.Sessions.unpinAction : L10n.Sessions.pinAction,
+                            systemImage: session.isPinned ? "pin.slash" : "pin"
+                        )
+                    }
+                    .tint(Color.theme.accent)
                 }
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+    }
+
+    private var editSessionSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text(L10n.Sessions.editTitleLabel)
+                        .captionStyle()
+                    ThemeTextField(
+                        text: $viewModel.editTitleText,
+                        placeholder: L10n.Sessions.editTitlePlaceholder,
+                        maxLength: ChatSessionListViewModel.maxTitleLength
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text(L10n.Sessions.editTagLabel)
+                        .captionStyle()
+                    ThemeTextField(
+                        text: $viewModel.editTagText,
+                        placeholder: L10n.Sessions.editTagPlaceholder,
+                        maxLength: ChatSessionListViewModel.maxTagLength
+                    )
+                }
+
+                Spacer(minLength: 0)
+
+                PrimaryButton(
+                    title: L10n.Sessions.editSave,
+                    isLoading: viewModel.isSavingEdit,
+                    isEnabled: viewModel.canSaveEdit && !viewModel.isSavingEdit
+                ) {
+                    Task { await viewModel.saveEdit() }
+                }
+            }
+            .padding(Spacing.lg)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(Color.theme.background.ignoresSafeArea())
+            .navigationTitle(L10n.Sessions.editSheetTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.Common.close) {
+                        viewModel.cancelEdit()
+                    }
+                }
+            }
+        }
     }
 }

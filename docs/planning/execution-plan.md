@@ -2308,9 +2308,9 @@ class ChatOrchestrator: ObservableObject {
 
 ### Step 11.1 — Session List Screen
 
-> **As shipped (task 17):** `SessionListView` / `SessionListViewModel` with `SessionDisplayModel` + `SessionRowView`. Local search (`filteredSessions`), swipe-to-delete → confirmation → `DeleteSessionUseCase` / `SessionRepository.deleteCascade`. Factory: `AppContainer.makeSessionListViewModel(router:)` (optional). Lives inside RootView’s Chats `NavigationStack` — no nested stack. Sketch below still shows `ChatOrchestrator.shared` / direct DB reads — prefer the shipped DI path.
+> **As shipped (task 17):** Session list with display model + row, local search, swipe-to-delete → `DeleteSessionUseCase`. Lives inside RootView’s Chats `NavigationStack` — no nested stack.
 >
-> **Planned (task 19a):** Rename list types to `ChatSessionListView` / `ChatSessionListViewModel` / `ChatSessionDisplayModel` / `ChatSessionRowView`. Add user rename, pin-to-top, custom topic tags (distinct color), capsule tag UI. See `docs/tasks/phase_1/19a-chat-session-list-management_iOS.md`.
+> **As shipped (task 19a):** Renamed to `ChatSessionListView` / `ChatSessionListViewModel` / `ChatSessionDisplayModel` / `ChatSessionRowView`. Factory: `makeChatSessionListViewModel(router:)`. User edit sheet (title + tag, no LLM), multi-pin sorted by `updatedAt`, custom tags (`Session.Topic.custom`) with distinct capsule color, leading pin swipe + trailing delete. Sketch below may still show old names / `ChatOrchestrator.shared` — prefer shipped DI path.
 
 ```swift
 // Features/Sessions/SessionListView.swift

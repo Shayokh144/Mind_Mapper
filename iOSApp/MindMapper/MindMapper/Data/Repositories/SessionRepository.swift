@@ -46,7 +46,7 @@ nonisolated struct SessionRepository: SessionRepositoryProtocol {
             return try await database.dbQueue.read { db in
                 try SessionRecord
                     .filter(Column("user_id") == userId)
-                    .order(Column("updated_at").desc)
+                    .order(Column("is_pinned").desc, Column("updated_at").desc)
                     .fetchAll(db)
                     .map(\.domainModel)
             }
@@ -65,7 +65,7 @@ nonisolated struct SessionRepository: SessionRepositoryProtocol {
                       AND EXISTS (
                         SELECT 1 FROM messages WHERE messages.session_id = sessions.id
                       )
-                    ORDER BY sessions.updated_at DESC
+                    ORDER BY sessions.is_pinned DESC, sessions.updated_at DESC
                     """
                 return try SessionRecord
                     .fetchAll(db, sql: sql, arguments: [userId])

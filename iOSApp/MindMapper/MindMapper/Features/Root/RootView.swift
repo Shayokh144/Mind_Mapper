@@ -61,8 +61,8 @@ struct RootView: View {
 
     @ViewBuilder
     private var sessionListRoot: some View {
-        if let viewModel = container.makeSessionListViewModel(router: router) {
-            SessionListView(viewModel: viewModel)
+        if let viewModel = container.makeChatSessionListViewModel(router: router) {
+            ChatSessionListView(viewModel: viewModel)
         } else {
             Text(L10n.Sessions.signInRequired)
                 .bodyStyle()
