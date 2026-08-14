@@ -23,13 +23,15 @@ struct ChatView: View {
 
     var body: some View {
         ScrollView { /* read viewModel.* */ }
-            .task { await viewModel.loadSession() } // prefer .task over Task in onAppear
+            .task { await viewModel.loadSession() }
     }
 }
 
 // ❌ Never call LLM/DB/API from body; no business if/else beyond UI branching
+// ❌ Never .onAppear { Task { await viewModel.load… } } — use .task / .task(id:)
 ```
 
+- **Async tied to the view:** `.task { }` or `.task(id:) { }` — never `Task` inside `.onAppear` (see `ios-swift-conventions.mdc`)
 - Local UI only: `@State`, `@FocusState`
 - Screen ViewModel: **`@StateObject`** — single source of truth ([Apple](https://developer.apple.com/documentation/swiftui/stateobject)); DI via `_viewModel = StateObject(wrappedValue:)`
 - Child that only observes a parent-owned object: `@ObservedObject` / `@EnvironmentObject`

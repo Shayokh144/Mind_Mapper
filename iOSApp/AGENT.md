@@ -603,6 +603,8 @@ struct RootView: View {
 
 Always manage the lifetime of a `Task` when it is tied to a View's lifecycle.
 
+**Hard rule:** never start async work with `.onAppear { Task { await … } }`. SwiftUI does not cancel that unstructured `Task` when the view disappears, and `onAppear` can fire more than once (e.g. certain navigation / tab scenarios). Use `.task` / `.task(id:)` instead.
+
 ```swift
 // ✅ Correct — task is cancelled when view disappears
 struct ChatView: View {
@@ -613,6 +615,33 @@ struct ChatView: View {
             .task {
                 // .task modifier automatically cancels when view disappears
                 await viewModel.loadSession()
+            }
+    }
+}
+
+// ✅ Correct — .task(id:) cancels the previous task and re-runs when the id changes
+struct ProfileView: View {
+    let userID: String
+    @StateObject private var viewModel: ProfileViewModel
+
+    var body: some View {
+        content
+            .task(id: userID) {
+                await viewModel.loadUser(userID)
+            }
+    }
+}
+
+// ✅ Correct — root list stays mounted under NavigationStack; reload when path returns to empty
+struct ChatSessionListView: View {
+    @EnvironmentObject private var router: AppRouter
+    @StateObject private var viewModel: ChatSessionListViewModel
+
+    var body: some View {
+        listContent
+            .task(id: router.path.count) {
+                guard router.path.isEmpty else { return }
+                await viewModel.loadSessions()
             }
     }
 }
@@ -630,6 +659,13 @@ struct ChatView: View {
     }
 }
 ```
+
+| Pattern | When to use |
+|---|---|
+| `.task { }` | Load once when the view appears; auto-cancel on disappear |
+| `.task(id:) { }` | Same, plus re-run when `id` changes (cancels the previous task) |
+| `.onAppear { }` | Sync UI only (animation, focus) — **never** spawn `Task { await … }` |
+| `Task { }` in a button / gesture | User-driven actions (send, delete, retry) — OK |
 
 ---
 
@@ -1383,6 +1419,7 @@ These are the most common mistakes. Treat each as a hard rule.
 | Use `await` for two independent operations sequentially | Use `async let` for parallelism |
 | Put GRDB or Supabase imports in a domain model | Keep domain models framework-free |
 | Navigate with `NavigationLink` programmatically inside a View | Use `AppRouter.navigate(to:)` from ViewModel |
+| `.onAppear { Task { await viewModel.load… } }` | `.task { await … }` or `.task(id:) { await … }` |
 
 ---
 

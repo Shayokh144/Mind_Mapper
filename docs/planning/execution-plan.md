@@ -2390,6 +2390,8 @@ struct SessionListView: View {
 ### Step 11.2 — Chat Screen
 
 > **As shipped (task 18):** `ChatView` + `TypingIndicator` + `ChatBubble(isWarning:)`. ScrollViewReader / LazyVStack, cross-session `ThemeBadge`, input bar (`ThemeTextField` + counter + send), kebab menu (memories / delete). Close hooks (`.onDisappear` / `.onAppBackground`) and `.task { loadSession() }` retained from task 16. Sketch below still shows `ChatOrchestrator.shared` — prefer shipped `ChatViewModel` + DI. Memories list/detail UI for the kebab destination is task **22**.
+>
+> **As shipped (task 19b):** While a reply is in flight, the input field is disabled and send becomes **stop**. `stopGenerating()` cancels/ignores the pipeline task so a late LLM result is not appended; user can edit the incomplete turn and resend. See `docs/tasks/phase_1/19b-chat-stop-generation_iOS.md`.
 
 ```swift
 // Features/Chat/ChatView.swift

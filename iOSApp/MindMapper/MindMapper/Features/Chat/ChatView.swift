@@ -216,6 +216,7 @@ struct ChatView: View {
                     ? L10n.Chat.editFailedPlaceholder
                     : L10n.Chat.inputPlaceholder,
                 maxLength: 500,
+                isEnabled: !viewModel.isLoading,
                 focus: $isInputFocused
             )
 
@@ -229,25 +230,39 @@ struct ChatView: View {
                 .frame(minWidth: 28, alignment: .trailing)
                 .accessibilityLabel(L10n.Chat.charactersRemaining(viewModel.charactersRemaining))
 
-            Button {
-                isInputFocused = false
-                Task { await viewModel.sendMessage() }
-            } label: {
-                Image(systemName: "arrow.up")
-                    .font(.theme.iconButton)
-                    .foregroundStyle(Color.theme.onAccent)
-                    .frame(width: 36, height: 36)
-                    .background(
-                        viewModel.canSend ? Color.theme.accent : Color.theme.textMuted
-                    )
-                    .clipShape(Circle())
+            if viewModel.isLoading {
+                Button {
+                    viewModel.stopGenerating()
+                } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.theme.iconButton)
+                        .foregroundStyle(Color.theme.onAccent)
+                        .frame(width: 36, height: 36)
+                        .background(Color.theme.accent)
+                        .clipShape(Circle())
+                }
+                .accessibilityLabel(L10n.Chat.stopAccessibility)
+            } else {
+                Button {
+                    isInputFocused = false
+                    Task { await viewModel.sendMessage() }
+                } label: {
+                    Image(systemName: "arrow.up")
+                        .font(.theme.iconButton)
+                        .foregroundStyle(Color.theme.onAccent)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            viewModel.canSend ? Color.theme.accent : Color.theme.textMuted
+                        )
+                        .clipShape(Circle())
+                }
+                .disabled(!viewModel.canSend)
+                .accessibilityLabel(
+                    viewModel.isEditingFailedTurn
+                        ? L10n.Chat.saveAndRetryAccessibility
+                        : L10n.Chat.sendAccessibility
+                )
             }
-            .disabled(!viewModel.canSend)
-            .accessibilityLabel(
-                viewModel.isEditingFailedTurn
-                    ? L10n.Chat.saveAndRetryAccessibility
-                    : L10n.Chat.sendAccessibility
-            )
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.md)

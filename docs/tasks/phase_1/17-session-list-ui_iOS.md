@@ -27,7 +27,7 @@ Screen 2 in the UI mockup — Home screen / Session List. Shows: large title 'My
 - [x] **4.** Build `SessionRowView` as a subcomponent: 38×38pt rounded icon tile with background color and SF Symbol, session title in `.headlineStyle()`, topic tag in `.captionStyle()`, relative date aligned trailing in `.captionStyle()`.
 - [x] **5.** Add swipe-to-delete on the list rows. On delete, show a `.confirmationDialog` asking 'Delete this conversation and all its memories?' with a destructive button. On confirmation, call the delete use case (built in Task 19).
 - [x] **6.** Implement the search bar: filter `sessions` array in the ViewModel by `title.localizedCaseInsensitiveContains(searchText)` as a computed property. The search is purely local — no LLM call.
-- [x] **7.** Apply `.task { await viewModel.loadSessions(userId: ...) }` to the view — never call async work from `onAppear`. *(Shell already uses `.task { await viewModel.loadSessions() }`.)*
+- [x] **7.** Apply `.task` / `.task(id:)` for load — never async work from `onAppear`. **As shipped:** `.task(id: router.path.count)` + `guard router.path.isEmpty` so the list reloads after pop (root stays mounted under `NavigationStack`).
 
 ---
 
@@ -55,4 +55,4 @@ The View must not import GRDB or Supabase. It must not call `DatabaseManager` di
 - Swipe-to-delete → confirmation → `DeleteSessionUseCase` (cascade via `SessionRepository.deleteCascade`). Full memory/account delete UX remains task 19.
 - **Follow-on (task 19a):** rename to `ChatSessionListView` (+ related types), user rename / pin / custom tags + capsule tag UI — [19a-chat-session-list-management_iOS.md](19a-chat-session-list-management_iOS.md).
 - `userId` is injected at VM creation (`makeSessionListViewModel`); `loadSessions()` / `startNewSession()` use that — no per-call `userId:` args.
-- Empty drafts: `+` still inserts a SQLite row (message FK), but the list uses `fetchAllWithMessages` + `purgeEmptySessions` on appear. Leaving Chat with no messages discards the draft (`ChatViewModel.onLeaveChat`). Swipe-delete uses a separate `isDeleteConfirmationPresented` flag so the pending session is not cleared when the dialog dismisses.
+- Empty drafts: `+` still inserts a SQLite row (message FK), but the list uses `fetchAllWithMessages` + `purgeEmptySessions` via `.task(id: router.path.count)` when at root. Leaving Chat with no messages discards the draft (`ChatViewModel.onLeaveChat`). Swipe-delete uses a separate `isDeleteConfirmationPresented` flag so the pending session is not cleared when the dialog dismisses.

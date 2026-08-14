@@ -239,6 +239,30 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(closeSession.executeCallCount, 1)
     }
 
+
+    func test_stopGenerating_cancelsPipelineAndPrefillsEdit() async {
+        classify.intent = .chat
+        llm.completeResult = "Should not appear"
+        scopeGuard.checkDelayNanoseconds = 300_000_000
+
+        let sendTask = Task { await sut.sendMessage("Hi there") }
+        try? await Task.sleep(nanoseconds: 40_000_000)
+        XCTAssertTrue(sut.isLoading)
+
+        sut.stopGenerating()
+
+        XCTAssertFalse(sut.isLoading)
+        XCTAssertTrue(sut.isEditingFailedTurn)
+        XCTAssertEqual(sut.inputText, "Hi there")
+        XCTAssertEqual(sut.messages.count, 1)
+        XCTAssertTrue(sut.messages.last?.isUser == true)
+
+        await sendTask.value
+        // Late pipeline must not append an assistant bubble.
+        XCTAssertEqual(sut.messages.count, 1)
+        XCTAssertFalse(sut.isLoading)
+    }
+
     // MARK: - Helpers
 
     private func makeSUT(inactivityInterval: TimeInterval = 120) -> ChatViewModel {

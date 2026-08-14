@@ -57,6 +57,8 @@ The `ChatBubble` component from the theme system (Task 5) handles all bubble sty
 **Already shipped (task 16):** Stub `ChatView` + Root navigation into chat; `.onDisappear` / `.onAppBackground` already call `closeSession()`. This task is SwiftUI polish — do not reimplement the orchestrator or close pipeline.
 
 **As shipped:**
+- Input bar, typing indicator, kebab delete, cross-session badge (task 18).
+- **Follow-on (task 19b):** disable input while loading; send → stop; cancel/ignore in-flight reply — [19b-chat-stop-generation_iOS.md](19b-chat-stop-generation_iOS.md).
 - Full `ChatView` with ScrollViewReader / LazyVStack, `TypingIndicator` (`Core/Theme/Components/`), input bar, kebab menu.
 - `ChatBubble(isWarning:)` for scope-blocked replies; scope no longer duplicates into `errorMessage`.
 - `ThemeTextField` optional `focus:` for `@FocusState`.

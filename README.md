@@ -55,6 +55,7 @@ Mind_Mapper/
 | 18 | [Chat UI](docs/tasks/phase_1/18-chat-ui_iOS.md) | iOS |
 | 19 | [Delete Feature](docs/tasks/phase_1/19-delete-feature_iOS.md) | iOS |
 | 19a | [Chat Session List — Rename, Pin & Custom Tags](docs/tasks/phase_1/19a-chat-session-list-management_iOS.md) | iOS |
+| 19b | [Chat Send — Disable Input & Stop Generation](docs/tasks/phase_1/19b-chat-stop-generation_iOS.md) | iOS |
 | 20 | [Full Test Suite](docs/tasks/phase_1/20-test-suite_iOS.md) | iOS |
 | 21 | [Polish & Portfolio Prep](docs/tasks/phase_1/21-polish-portfolio_iOS.md) | iOS |
 

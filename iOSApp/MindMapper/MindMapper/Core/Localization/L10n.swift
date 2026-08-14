@@ -126,6 +126,7 @@ enum L10n {
         static var viewMemories: String { tr("chat.view_memories") }
         static var deleteConversation: String { tr("chat.delete_conversation") }
         static var sendAccessibility: String { tr("chat.send_a11y") }
+        static var stopAccessibility: String { tr("chat.stop_a11y") }
         static var menuAccessibility: String { tr("chat.menu_a11y") }
         static var typingAccessibility: String { tr("chat.typing_a11y") }
         static var retry: String { tr("chat.retry") }

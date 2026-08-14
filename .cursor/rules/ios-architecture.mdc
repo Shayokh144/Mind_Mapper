@@ -35,6 +35,7 @@ View → ViewModel → UseCase → Repository → DB/API
 - Reusable configurable components in `Core/Theme/Components/` — one bubble/button for variants (`ios-ui-components.mdc`)
 - No `NavigationView` — use `NavigationStack` + `AppRouter`
 - No `DispatchQueue.main.async` — use `@MainActor`
+- No `.onAppear { Task { await … } }` — use `.task` / `.task(id:)` (auto-cancel; see `ios-swift-conventions.mdc`)
 - No force unwraps / `try!` / `as!` — use `do/catch` or `guard` and log with `AppLogger` (`NSLog` today; Sentry later per `docs/pre-release-checklist.md`)
 
 When unsure, check the matching section in `iOSApp/AGENT.md` before implementing.

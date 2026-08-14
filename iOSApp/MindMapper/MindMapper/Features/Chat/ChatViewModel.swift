@@ -24,9 +24,12 @@ final class ChatViewModel: ObservableObject {
     private let inputMaxLength = 500
 
     private var inactivityTask: Task<Void, Never>?
+    private var pipelineTask: Task<Void, Never>?
     private var isClosingSession = false
     /// Bumped when a send/retry starts so an in-flight close abandons before applying results.
     private var closeGeneration = 0
+    /// Bumped on each send/retry/stop so late pipeline results are ignored after cancel.
+    private var pipelineGeneration = 0
     /// True after new turns until a successful close (avoids duplicate summary embeddings).
     private var needsSessionClose = false
 
@@ -79,6 +82,7 @@ final class ChatViewModel: ObservableObject {
 
     deinit {
         inactivityTask?.cancel()
+        pipelineTask?.cancel()
     }
 
     // MARK: - Session lifecycle
@@ -182,47 +186,40 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Send / retry
+    // MARK: - Send / retry / stop
 
     func sendMessage(_ rawInput: String? = nil) async {
-        if isEditingFailedTurn {
-            await submitEditedFailedTurn(rawInput)
-            return
+        guard !isLoading else { return }
+        let task = Task { await self.performSend(rawInput) }
+        pipelineTask = task
+        await task.value
+        if pipelineTask == task {
+            pipelineTask = nil
         }
+    }
 
-        let raw = (rawInput ?? inputText).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !raw.isEmpty else { return }
-
-        if rawInput == nil {
-            inputText = ""
+    /// Cancels the in-flight reply and ignores any late result. Prefills the last
+    /// user message so the user can edit and send again.
+    func stopGenerating() {
+        guard isLoading else { return }
+        invalidatePipeline()
+        isLoading = false
+        errorMessage = nil
+        if let last = messages.last, last.isUser {
+            inputText = last.content
+            isEditingFailedTurn = true
         }
-        beginPipeline()
-        defer { isLoading = false }
-
-        guard let sanitised = prepareSanitisedInput(raw) else { return }
-
-        let userMessage = Message(sessionId: sessionId, role: "user", content: raw)
-        do {
-            try await dependencies.messageRepository.save(userMessage)
-            messages.append(MessageDisplayModel(from: userMessage))
-            markActivityForSessionClose()
-        } catch {
-            errorMessage = mapError(error)
-            return
-        }
-
-        await runPipeline(sanitised: sanitised)
     }
 
     func retryLastTurn() async {
         guard let last = messages.last, last.isUser, !isLoading else { return }
         isEditingFailedTurn = false
-        beginPipeline()
-        defer { isLoading = false }
-
-        guard let sanitised = prepareSanitisedInput(last.content) else { return }
-        markActivityForSessionClose()
-        await runPipeline(sanitised: sanitised)
+        let task = Task { await self.performRetry(content: last.content) }
+        pipelineTask = task
+        await task.value
+        if pipelineTask == task {
+            pipelineTask = nil
+        }
     }
 
     func beginEditFailedTurn() {
@@ -240,20 +237,62 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Private
+    // MARK: - Private send helpers
 
-    private func submitEditedFailedTurn(_ rawInput: String?) async {
-        guard let last = messages.last, last.isUser else {
-            isEditingFailedTurn = false
-            await sendMessage(rawInput)
+    private func performSend(_ rawInput: String?) async {
+        if isEditingFailedTurn {
+            await submitEditedFailedTurn(rawInput)
             return
         }
 
         let raw = (rawInput ?? inputText).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return }
 
-        beginPipeline()
-        defer { isLoading = false }
+        if rawInput == nil {
+            inputText = ""
+        }
+        let generation = beginPipeline()
+        defer { endPipelineIfCurrent(generation) }
+
+        guard let sanitised = prepareSanitisedInput(raw) else { return }
+
+        let userMessage = Message(sessionId: sessionId, role: "user", content: raw)
+        do {
+            try await dependencies.messageRepository.save(userMessage)
+            guard isPipelineActive(generation) else { return }
+            messages.append(MessageDisplayModel(from: userMessage))
+            markActivityForSessionClose()
+        } catch {
+            if isPipelineActive(generation) {
+                errorMessage = mapError(error)
+            }
+            return
+        }
+
+        await runPipeline(sanitised: sanitised, generation: generation)
+    }
+
+    private func performRetry(content: String) async {
+        let generation = beginPipeline()
+        defer { endPipelineIfCurrent(generation) }
+
+        guard let sanitised = prepareSanitisedInput(content) else { return }
+        markActivityForSessionClose()
+        await runPipeline(sanitised: sanitised, generation: generation)
+    }
+
+    private func submitEditedFailedTurn(_ rawInput: String?) async {
+        guard let last = messages.last, last.isUser else {
+            isEditingFailedTurn = false
+            await performSend(rawInput)
+            return
+        }
+
+        let raw = (rawInput ?? inputText).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return }
+
+        let generation = beginPipeline()
+        defer { endPipelineIfCurrent(generation) }
 
         guard let sanitised = prepareSanitisedInput(raw) else { return }
 
@@ -266,25 +305,46 @@ final class ChatViewModel: ObservableObject {
         )
         do {
             try await dependencies.messageRepository.update(updated)
+            guard isPipelineActive(generation) else { return }
             messages[messages.count - 1] = MessageDisplayModel(from: updated)
             inputText = ""
             isEditingFailedTurn = false
             markActivityForSessionClose()
         } catch {
-            errorMessage = mapError(error)
+            if isPipelineActive(generation) {
+                errorMessage = mapError(error)
+            }
             return
         }
 
-        await runPipeline(sanitised: sanitised)
+        await runPipeline(sanitised: sanitised, generation: generation)
     }
 
     /// Marks the chat busy and bumps the close generation so an in-flight
     /// `closeSession` will not finish / steal LLM capacity.
-    private func beginPipeline() {
+    private func beginPipeline() -> Int {
         closeGeneration += 1
+        pipelineGeneration += 1
         isLoading = true
         errorMessage = nil
         lastAnswerSessionCount = 0
+        return pipelineGeneration
+    }
+
+    private func endPipelineIfCurrent(_ generation: Int) {
+        if generation == pipelineGeneration {
+            isLoading = false
+        }
+    }
+
+    private func invalidatePipeline() {
+        pipelineGeneration += 1
+        pipelineTask?.cancel()
+        pipelineTask = nil
+    }
+
+    private func isPipelineActive(_ generation: Int) -> Bool {
+        generation == pipelineGeneration && !Task.isCancelled
     }
 
     /// Rate limit + sanitise. Sets `errorMessage` and returns `nil` on block.
@@ -305,15 +365,17 @@ final class ChatViewModel: ObservableObject {
         return sanitised
     }
 
-    private func runPipeline(sanitised: String) async {
+    private func runPipeline(sanitised: String, generation: Int) async {
         do {
             let scope = try await dependencies.scopeGuard.check(sanitised)
+            guard isPipelineActive(generation) else { return }
             if case .outOfScope(let reason) = scope {
                 dependencies.rateLimiter.recordBlocked()
-                await appendAssistant(content: reason, isWarning: true)
+                await appendAssistant(content: reason, isWarning: true, generation: generation)
                 return
             }
         } catch {
+            guard isPipelineActive(generation) else { return }
             if !Self.isCancellation(error) {
                 errorMessage = mapError(error)
             }
@@ -324,9 +386,12 @@ final class ChatViewModel: ObservableObject {
 
         do {
             let intent = try await dependencies.classifyIntentUseCase.execute(sanitised)
+            guard isPipelineActive(generation) else { return }
             let reply = try await route(intent: intent, text: sanitised)
-            await appendAssistant(content: reply)
+            guard isPipelineActive(generation) else { return }
+            await appendAssistant(content: reply, generation: generation)
         } catch {
+            guard isPipelineActive(generation) else { return }
             if Self.isCancellation(error) {
                 errorMessage = L10n.Chat.incompleteTurn
             } else {
@@ -423,13 +488,20 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    private func appendAssistant(content: String, isWarning: Bool = false) async {
+    private func appendAssistant(
+        content: String,
+        isWarning: Bool = false,
+        generation: Int
+    ) async {
+        guard isPipelineActive(generation) else { return }
         let message = Message(sessionId: sessionId, role: "assistant", content: content)
         let display = MessageDisplayModel(from: message, isWarning: isWarning)
         do {
             try await dependencies.messageRepository.save(message)
+            guard isPipelineActive(generation) else { return }
             messages.append(display)
         } catch {
+            guard isPipelineActive(generation) else { return }
             // Still show the bubble if persistence fails
             messages.append(display)
             if errorMessage == nil {

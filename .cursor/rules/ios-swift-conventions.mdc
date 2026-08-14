@@ -10,12 +10,31 @@ Source of truth: `iOSApp/AGENT.md` §6–§7, §11–§13.
 
 ## Async / concurrency
 
-- Prefer `.task { }` over `Task { }` in `onAppear` (auto-cancels)
+- **Hard ban:** never `.onAppear { Task { await … } }` — SwiftUI does not cancel that `Task`; `onAppear` can also fire more than once
+- **Load / refresh bound to a view:** use `.task { await … }` (auto-cancels on disappear)
+- **Reload when an identity changes** (or when a root list should refresh after pop): `.task(id:) { await … }` — cancels the previous task and starts a new one
+- `.onAppear` is OK only for **sync** UI (start animation, set focus) — never spawn unstructured `Task`s there
+- Button / gesture handlers may use `Task { await … }` (user-driven, not view-lifecycle)
 - Independent work → `async let` or `TaskGroup`, not sequential `await`
 - Stream tokens with `AsyncThrowingStream`; update `@Published` incrementally
 - Use `defer { isLoading = false }` so loading always clears
 - Check `Task.checkCancellation()` in long loops
 - All ViewModels: `@MainActor`. Heavy CPU: `Task.detached` — never `DispatchQueue.main.async`
+
+```swift
+// ❌ BAD — unstructured Task; keeps running after disappear; can re-fire
+.onAppear { Task { await viewModel.loadData() } }
+
+// ✅ GOOD — cancelled when the view disappears
+.task { await viewModel.loadData() }
+
+// ✅ GOOD — also re-runs when id changes (previous task cancelled)
+.task(id: userID) { await viewModel.loadUser(userID) }
+.task(id: router.path.count) {
+    guard router.path.isEmpty else { return }
+    await viewModel.loadSessions() // e.g. refresh list after pop
+}
+```
 
 ## Errors
 

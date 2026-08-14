@@ -5,6 +5,7 @@ struct ThemeTextField: View {
     let placeholder: String
     var maxLength: Int = 500
     var isSecure: Bool = false
+    var isEnabled: Bool = true
     var focus: FocusState<Bool>.Binding? = nil
 
     var body: some View {
@@ -18,8 +19,9 @@ struct ThemeTextField: View {
                 }
             }
             .font(.theme.body)
-            .foregroundStyle(Color.theme.textPrimary)
-            .modifier(OptionalFocusModifier(focus: focus))
+            .foregroundStyle(isEnabled ? Color.theme.textPrimary : Color.theme.textMuted)
+            .disabled(!isEnabled)
+            .modifier(OptionalFocusModifier(focus: isEnabled ? focus : nil))
             .onChange(of: text) { newValue in
                 if newValue.count > maxLength {
                     text = String(newValue.prefix(maxLength))
@@ -30,6 +32,8 @@ struct ThemeTextField: View {
         .padding(.vertical, Spacing.sm)
         .background(Color.theme.surfaceSecondary)
         .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+        .opacity(isEnabled ? 1 : 0.7)
+        .allowsHitTesting(isEnabled)
     }
 }
 

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ChatSessionListView: View {
+    @EnvironmentObject private var router: AppRouter
     @StateObject private var viewModel: ChatSessionListViewModel
 
     init(viewModel: ChatSessionListViewModel) {
@@ -61,9 +62,11 @@ struct ChatSessionListView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
-        // Root stays mounted under NavigationStack — refresh when returning from chat.
-        .onAppear {
-            Task { await viewModel.loadSessions() }
+        // Root stays mounted under NavigationStack — .task(id:) reloads when path
+        // returns to empty after pop (plain .task would only run once).
+        .task(id: router.path.count) {
+            guard router.path.isEmpty else { return }
+            await viewModel.loadSessions()
         }
     }
 
