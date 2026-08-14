@@ -17,6 +17,7 @@ struct ChatView: View {
             messageList
             errorBanner
             editingFailedTurnBar
+            sessionMessageQuotaBar
             inputBar
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -208,15 +209,26 @@ struct ChatView: View {
         }
     }
 
+    private var sessionMessageQuotaBar: some View {
+        SessionMessageQuotaBar(
+            usedCount: viewModel.sessionMessageUsedCount,
+            maxCount: ChatLimits.maxMessagesPerSession
+        )
+        .padding(.horizontal, Spacing.lg)
+        .padding(.bottom, Spacing.sm)
+    }
+
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: Spacing.sm) {
             ThemeTextField(
                 text: $viewModel.inputText,
                 placeholder: viewModel.isEditingFailedTurn
                     ? L10n.Chat.editFailedPlaceholder
-                    : L10n.Chat.inputPlaceholder,
-                maxLength: 500,
-                isEnabled: !viewModel.isLoading,
+                    : (viewModel.isSessionAtMessageLimit
+                        ? L10n.Chat.sessionFullPlaceholder
+                        : L10n.Chat.inputPlaceholder),
+                maxLength: ChatLimits.maxCharactersPerMessage,
+                isEnabled: !viewModel.isLoading && !viewModel.isSessionAtMessageLimit,
                 focus: $isInputFocused
             )
 
@@ -258,9 +270,11 @@ struct ChatView: View {
                 }
                 .disabled(!viewModel.canSend)
                 .accessibilityLabel(
-                    viewModel.isEditingFailedTurn
-                        ? L10n.Chat.saveAndRetryAccessibility
-                        : L10n.Chat.sendAccessibility
+                    viewModel.isSessionAtMessageLimit
+                        ? L10n.Chat.sessionFullSendAccessibility
+                        : (viewModel.isEditingFailedTurn
+                            ? L10n.Chat.saveAndRetryAccessibility
+                            : L10n.Chat.sendAccessibility)
                 )
             }
         }

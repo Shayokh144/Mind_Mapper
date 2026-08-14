@@ -9,7 +9,7 @@
 ⏱️ 4–6 hours
 
 ## Depends On
-All previous tasks (Tasks 1–19 complete)
+All previous tasks (Tasks 1–19 / 19a–19d as applicable for features under test)
 
 ## Related Plan Section
 📄 `../planning/execution-plan.md` → Phase 12 — Testing | ../../iOSApp/AGENT.md › Section 13 — Testing Conventions

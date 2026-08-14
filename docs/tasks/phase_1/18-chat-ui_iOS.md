@@ -32,6 +32,8 @@ Screens 3 and 4 in the UI mockup — Chat View in light and dark mode. Shows: na
 - [x] **9.** Confirm `viewModel.closeSession()` still runs on `.onDisappear` and `.onAppBackground` (already wired in task 16 shell) — keep those hooks when rebuilding the body.
 - [x] **10.** Confirm `.task { await viewModel.loadSession() }` remains on the view when the UI is rebuilt.
 
+> **Follow-on (task 19c):** ChatGPT-style rolling LLM transcript + max messages per session — [19c-chat-rolling-transcript_iOS.md](19c-chat-rolling-transcript_iOS.md). Keep character counter / 500-char sanitiser; add session-full UX when shipping 19c.
+
 ---
 
 ## ✅ Done When

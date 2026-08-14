@@ -18,7 +18,10 @@ struct ExtractionResult: Decodable, Equatable, Sendable {
 }
 
 protocol MemoryExtractorProtocol {
-    func extract(from rawText: String) async throws -> ExtractionResult
+    func extract(
+        from rawText: String,
+        conversationContext: [LLMMessage]
+    ) async throws -> ExtractionResult
 }
 
 /// Pulls a normalised fact + entities from a STORE message via `tier: .mini`.
@@ -29,9 +32,12 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
         self.llmClient = llmClient
     }
 
-    func extract(from rawText: String) async throws -> ExtractionResult {
+    func extract(
+        from rawText: String,
+        conversationContext: [LLMMessage] = []
+    ) async throws -> ExtractionResult {
         do {
-            return try await requestExtraction(rawText)
+            return try await requestExtraction(rawText, conversationContext: conversationContext)
         } catch {
             // Don't immediately retry quota/rate-limit — Google asks to wait ~30–60s.
             if Self.isQuotaOrRateLimited(error) {
@@ -39,7 +45,7 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
             }
             // One retry — Gemini Flash sometimes returns truncated / empty JSON.
             AppLogger.error("Memory extraction decode failed; retrying once", error: error)
-            return try await requestExtraction(rawText)
+            return try await requestExtraction(rawText, conversationContext: conversationContext)
         }
     }
 
@@ -61,10 +67,16 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
         return text.contains("429") || text.contains("quota")
     }
 
-    private func requestExtraction(_ rawText: String) async throws -> ExtractionResult {
+    private func requestExtraction(
+        _ rawText: String,
+        conversationContext: [LLMMessage]
+    ) async throws -> ExtractionResult {
         let systemPrompt = """
         You are a personal memory extraction assistant.
-        Extract structured information from the user message.
+        Extract structured information from the latest user message.
+        Prior conversation turns (if any) are only for resolving pronouns and incomplete \
+        references (e.g. "it" → the passport mentioned earlier). Do NOT merge the whole \
+        thread into one memory — output one clean_text for the NEW fact only.
         Reply ONLY with valid JSON, no other text. Keep the JSON compact.
 
         JSON format:
@@ -83,12 +95,15 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
         - supersedes_hint: look for words like "instead", "actually", "changed my mind", "no longer"
         """
 
+        var messages: [LLMMessage] = [
+            LLMMessage(role: "system", content: systemPrompt),
+        ]
+        messages.append(contentsOf: conversationContext)
+        messages.append(LLMMessage(role: "user", content: rawText))
+
         let json = try await llmClient.complete(
             tier: .mini,
-            messages: [
-                LLMMessage(role: "system", content: systemPrompt),
-                LLMMessage(role: "user", content: rawText),
-            ],
+            messages: messages,
             // Compact JSON; proxy also sets responseMimeType=application/json when temp=0.
             maxTokens: 512,
             temperature: 0

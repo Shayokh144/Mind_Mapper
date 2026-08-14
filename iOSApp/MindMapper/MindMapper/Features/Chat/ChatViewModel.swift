@@ -21,7 +21,7 @@ final class ChatViewModel: ObservableObject {
     private var sessionId: String
     private let userId: String
     private let inactivityInterval: TimeInterval
-    private let inputMaxLength = 500
+    private let inputMaxLength = ChatLimits.maxCharactersPerMessage
 
     private var inactivityTask: Task<Void, Never>?
     private var pipelineTask: Task<Void, Never>?
@@ -45,7 +45,20 @@ final class ChatViewModel: ObservableObject {
     }
 
     var canSend: Bool {
-        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !isLoading
+            && !isSessionAtMessageLimit
+    }
+
+    /// True when the next user+assistant pair would exceed `ChatLimits.maxMessagesPerSession`.
+    var isSessionAtMessageLimit: Bool {
+        ChatLimits.isAtMessageLimit(currentCount: messages.count)
+    }
+
+    var sessionMessageUsedCount: Int { messages.count }
+
+    var sessionMessageRemainingCount: Int {
+        ChatLimits.remainingMessageSlots(currentCount: messages.count)
     }
 
     var showsCrossSessionBadge: Bool {
@@ -102,6 +115,8 @@ final class ChatViewModel: ObservableObject {
             }
             if messages.last?.isUser == true {
                 errorMessage = L10n.Chat.incompleteTurn
+            } else if ChatLimits.isAtMessageLimit(currentCount: messages.count) {
+                errorMessage = L10n.Chat.sessionFull
             }
         } catch {
             errorMessage = mapError(error)
@@ -248,6 +263,11 @@ final class ChatViewModel: ObservableObject {
         let raw = (rawInput ?? inputText).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return }
 
+        if isSessionAtMessageLimit {
+            errorMessage = L10n.Chat.sessionFull
+            return
+        }
+
         if rawInput == nil {
             inputText = ""
         }
@@ -273,6 +293,12 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func performRetry(content: String) async {
+        // Incomplete user row already exists — only need one slot for the assistant reply.
+        if messages.count >= ChatLimits.maxMessagesPerSession {
+            errorMessage = L10n.Chat.sessionFull
+            return
+        }
+
         let generation = beginPipeline()
         defer { endPipelineIfCurrent(generation) }
 
@@ -291,6 +317,7 @@ final class ChatViewModel: ObservableObject {
         let raw = (rawInput ?? inputText).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return }
 
+        // Editing replaces an existing user row — does not add a new slot.
         let generation = beginPipeline()
         defer { endPipelineIfCurrent(generation) }
 
@@ -385,7 +412,14 @@ final class ChatViewModel: ObservableObject {
         dependencies.rateLimiter.recordAllowed()
 
         do {
-            let intent = try await dependencies.classifyIntentUseCase.execute(sanitised)
+            let intentContext = rollingLLMContext(
+                limit: ChatLimits.intentContextMessageCount,
+                excludingCurrentText: sanitised
+            )
+            let intent = try await dependencies.classifyIntentUseCase.execute(
+                sanitised,
+                conversationContext: intentContext
+            )
             guard isPipelineActive(generation) else { return }
             let reply = try await route(intent: intent, text: sanitised)
             guard isPipelineActive(generation) else { return }
@@ -447,12 +481,18 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func route(intent: Intent, text: String) async throws -> String {
+        let storeContext = rollingLLMContext(
+            limit: ChatLimits.rollingContextMessageCount,
+            excludingCurrentText: text
+        )
+
         switch intent {
         case .store:
             return try await dependencies.saveMemoryUseCase.execute(
                 text: text,
                 sessionId: sessionId,
-                userId: userId
+                userId: userId,
+                conversationContext: storeContext
             )
         case .query:
             let answer = try await dependencies.queryMemoryUseCase.execute(
@@ -471,21 +511,49 @@ final class ChatViewModel: ObservableObject {
             lastAnswerSessionCount = answer.representedSessionIds.count
             return answer.text
         case .chat:
+            var llmMessages: [LLMMessage] = [
+                LLMMessage(
+                    role: "system",
+                    content: """
+                        You are a friendly personal memory assistant. Keep casual replies brief.
+                        Use prior turns for coherence when the user refers to earlier messages.
+                        """
+                ),
+            ]
+            llmMessages.append(contentsOf: storeContext)
+            llmMessages.append(LLMMessage(role: "user", content: text))
             return try await dependencies.llmClient.complete(
                 tier: .mini,
-                messages: [
-                    LLMMessage(
-                        role: "system",
-                        content: """
-                            You are a friendly personal memory assistant. Keep casual replies brief.
-                            """
-                    ),
-                    LLMMessage(role: "user", content: text),
-                ],
+                messages: llmMessages,
                 maxTokens: 200,
                 temperature: 0.7
             )
         }
+    }
+
+    /// Domain messages for the current session UI list (same order as bubbles).
+    private func domainMessages() -> [Message] {
+        messages.map {
+            Message(
+                id: $0.id,
+                sessionId: sessionId,
+                role: $0.role,
+                content: $0.content,
+                createdAt: $0.createdAt
+            )
+        }
+    }
+
+    /// Rolling LLM history without duplicating the current user turn.
+    private func rollingLLMContext(
+        limit: Int,
+        excludingCurrentText: String
+    ) -> [LLMMessage] {
+        let rolling = ChatLimits.rollingContext(from: domainMessages(), limit: limit)
+        return ChatLimits.llmMessagesExcludingTrailingUser(
+            from: rolling,
+            currentText: excludingCurrentText
+        )
     }
 
     private func appendAssistant(

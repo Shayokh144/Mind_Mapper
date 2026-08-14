@@ -70,6 +70,73 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(sut.messages[0].role, "user")
         XCTAssertEqual(sut.messages[1].content, "Got it — keys noted.")
         XCTAssertEqual(rateLimiter.recordAllowedCallCount, 1)
+        // First turn — no prior context for STORE.
+        XCTAssertEqual(saveMemory.lastConversationContext?.count, 0)
+    }
+
+    func test_sendMessage_storeWithHistory_passesRollingContext() async throws {
+        classify.intent = .store
+        messages.messages = [
+            Message(sessionId: session.id, role: "user", content: "I kept my passport in the 3rd drawer"),
+            Message(sessionId: session.id, role: "assistant", content: "Got it."),
+        ]
+        await sut.loadSession()
+
+        await sut.sendMessage("It is inside a blue colored file.")
+
+        XCTAssertEqual(saveMemory.executeCallCount, 1)
+        let context = try XCTUnwrap(saveMemory.lastConversationContext)
+        XCTAssertEqual(context.count, 2)
+        XCTAssertEqual(context[0].content, "I kept my passport in the 3rd drawer")
+        XCTAssertEqual(context[1].content, "Got it.")
+        XCTAssertEqual(classify.lastConversationContext?.count, 2)
+    }
+
+    func test_sendMessage_chatWithHistory_includesPriorTurnsInLLMPayload() async throws {
+        classify.intent = .chat
+        llm.completeResult = "You're welcome!"
+        messages.messages = [
+            Message(sessionId: session.id, role: "user", content: "Hello"),
+            Message(sessionId: session.id, role: "assistant", content: "Hi there"),
+        ]
+        await sut.loadSession()
+
+        await sut.sendMessage("Thanks!")
+
+        XCTAssertEqual(llm.completeCallCount, 1)
+        let payload = try XCTUnwrap(llm.lastMessages)
+        // system + 2 history + current
+        XCTAssertEqual(payload.count, 4)
+        XCTAssertEqual(payload[0].role, "system")
+        XCTAssertEqual(payload[1].content, "Hello")
+        XCTAssertEqual(payload[2].content, "Hi there")
+        XCTAssertEqual(payload[3].content, "Thanks!")
+    }
+
+    func test_sessionAtMessageLimit_blocksSendAndSkipsUseCases() async {
+        classify.intent = .store
+        let limit = ChatLimits.maxMessagesPerSession - 1
+        messages.messages = (0..<limit).map { index in
+            Message(
+                sessionId: session.id,
+                // End on assistant so loadSession does not prefer incomplete-turn copy.
+                role: index.isMultiple(of: 2) ? "assistant" : "user",
+                content: "m\(index)"
+            )
+        }
+        await sut.loadSession()
+
+        XCTAssertTrue(sut.isSessionAtMessageLimit)
+        XCTAssertFalse(sut.canSend)
+        XCTAssertEqual(sut.errorMessage, L10n.Chat.sessionFull)
+
+        sut.inputText = "One more fact"
+        await sut.sendMessage()
+
+        XCTAssertEqual(saveMemory.executeCallCount, 0)
+        XCTAssertEqual(classify.executeCallCount, 0)
+        XCTAssertEqual(sut.messages.count, limit)
+        XCTAssertEqual(sut.errorMessage, L10n.Chat.sessionFull)
     }
 
     func test_sendMessage_queryIntent_callsQueryMemoryAndSetsSessionCount() async {

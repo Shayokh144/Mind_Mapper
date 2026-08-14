@@ -26,7 +26,7 @@ Primary flow code:
 | Reachability | Single `NetworkReachabilityService` (`NWPathMonitor`), global offline banner, `NetworkGate` + auth VM guards |
 | Reconnect | On path → connected, `revalidateSessionIfNeeded()` |
 | Local user | On auth success, upsert `users` via `AuthRepository` |
-| Screens in flow | Onboarding, Login (sheet), Forgot password (sheet), Set new password, Root tabs (Chats / Memories / Settings), Session list shell, Chat shell, session restore splash, boot failure, offline banner |
+| Screens in flow | Onboarding, Login (sheet), Forgot password (sheet), Set new password, Root tabs (Chats / Memories / Settings), Session list, Chat (rolling transcript + message quota bar), session restore splash, boot failure, offline banner. **Planned (19d):** Reminders tab + chat reminder offer |
 | Navigation | `AppRouter` (`path`, sheets, `selectedTab`, `.openMemory` deep link) as `@EnvironmentObject` |
 | Config | `AppConfig` (Supabase URL/key, `mindmapper://auth-callback`) |
 
@@ -186,7 +186,7 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | `SetNewPasswordView` | Recovery deep link | Update password → Root |
 | `RootView` (tabs) | `isAuthenticated` | Chats / Memories / Settings; sign out → Onboarding |
 | `ChatSessionListView` | Chats tab root | + / kebab (rename·tag) / pin swipe / row → `ChatView` via `AppRouter` |
-| `ChatView` | `Destination.chat` | Menu memories/delete; disappear/background → `closeSession` |
+| `ChatView` | `Destination.chat` | Menu memories/delete; disappear/background → `closeSession`; 500 chars/message; rolling LLM context (12); max 40 messages/session + quota bar |
 | `MemoryListView` (placeholder → task 22) | Memories tab or push | — |
 | `SettingsView` | Settings tab | Sign out / delete account → Onboarding |
 | Deep-link error badge | Failed `handleAuthCallback` | Tap to clear |
@@ -200,7 +200,8 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 |------|--------|
 | `ContentView` | Xcode template leftover — not used by `@main` |
 | Memories list / memory detail content | Placeholders — task **22** |
-| Push notification → `.openMemory` poster | Observer ready; delegate in task 20 |
+| Local reminders / notifications (chat offer + Reminders tab) | Planned — task **19d**: structured LLM proposal (`should_set_notification` + title/description/datetime/recurrence); Yes/No + editor (null → placeholders, Save validated); tab + manual +; once/daily/weekly/monthly |
+| Push notification → `.openMemory` poster | Observer ready; local tap wiring in **19d**; remote push still out of scope |
 | Sign in with Apple | Pre-release checklist |
 
 ---

@@ -1325,6 +1325,61 @@
         }
       }
     },
+    "chat.session_full": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This chat is full — start a new conversation."
+          }
+        }
+      }
+    },
+    "chat.session_full_placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat full — start a new conversation"
+          }
+        }
+      }
+    },
+    "chat.session_full_send_a11y": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot send — chat message limit reached"
+          }
+        }
+      }
+    },
+    "chat.messages_remaining": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld messages left"
+          }
+        }
+      }
+    },
+    "chat.messages_remaining_a11y": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld messages remaining in this chat"
+          }
+        }
+      }
+    },
     "chat.stop_a11y": {
       "extractionState": "manual",
       "localizations": {

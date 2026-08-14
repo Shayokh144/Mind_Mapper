@@ -143,6 +143,18 @@ enum L10n {
         static func charactersRemaining(_ count: Int) -> String {
             String(format: tr("chat.characters_remaining"), locale: .current, count)
         }
+
+        static var sessionFull: String { tr("chat.session_full") }
+        static var sessionFullPlaceholder: String { tr("chat.session_full_placeholder") }
+        static var sessionFullSendAccessibility: String { tr("chat.session_full_send_a11y") }
+
+        static func messagesRemaining(_ remaining: Int, max: Int) -> String {
+            String(format: tr("chat.messages_remaining"), locale: .current, remaining, max)
+        }
+
+        static func messagesRemainingAccessibility(_ remaining: Int, max: Int) -> String {
+            String(format: tr("chat.messages_remaining_a11y"), locale: .current, remaining, max)
+        }
     }
 
     // MARK: - Memories

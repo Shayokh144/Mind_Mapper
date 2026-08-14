@@ -6,10 +6,15 @@ nonisolated final class MockClassifyIntentUseCase: ClassifyIntentUseCaseProtocol
     var error: Error?
     private(set) var executeCallCount = 0
     private(set) var lastInput: String?
+    private(set) var lastConversationContext: [LLMMessage]?
 
-    func execute(_ input: String) async throws -> Intent {
+    func execute(
+        _ input: String,
+        conversationContext: [LLMMessage]
+    ) async throws -> Intent {
         executeCallCount += 1
         lastInput = input
+        lastConversationContext = conversationContext
         if let error { throw error }
         return intent
     }
@@ -20,10 +25,17 @@ nonisolated final class MockSaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unche
     var error: Error?
     private(set) var executeCallCount = 0
     private(set) var lastText: String?
+    private(set) var lastConversationContext: [LLMMessage]?
 
-    func execute(text: String, sessionId: String, userId: String) async throws -> String {
+    func execute(
+        text: String,
+        sessionId: String,
+        userId: String,
+        conversationContext: [LLMMessage]
+    ) async throws -> String {
         executeCallCount += 1
         lastText = text
+        lastConversationContext = conversationContext
         if let error { throw error }
         return result
     }

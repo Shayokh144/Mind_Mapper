@@ -68,7 +68,9 @@ iOSApp/
 │   └── AppDelegate.swift           ← push notification registration only
 │
 ├── Core/
-│   ├── Theme/                      ← Color+Theme, Font+Theme, Spacing, Components (ChatBubble, TypingIndicator, …)
+│   ├── Theme/                      ← Color+Theme, Font+Theme, Spacing, Components (ChatBubble, SessionMessageQuotaBar, …)
+│   ├── Chat/                       ← ChatLimits (message/session caps + rolling context helpers)
+│   ├── Notifications/              ← LocalNotificationService (task 19d — UNUserNotificationCenter)
 │   ├── Database/                   ← DatabaseManager, migrations
 │   ├── Network/                    ← LLMClient, SupabaseClient wrapper
 │   ├── VectorStore/                ← Cosine similarity over local embedding blobs
@@ -125,6 +127,9 @@ iOSApp/
 │   ├── Memories/
 │   │   ├── MemoryListView.swift
 │   │   └── MemoryListViewModel.swift
+│   ├── Reminders/                  ← task 19d — list / edit local reminders
+│   │   ├── RemindersListView.swift
+│   │   └── RemindersListViewModel.swift
 │   └── Settings/
 │       ├── SettingsView.swift
 │       └── SettingsViewModel.swift
@@ -227,14 +232,17 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: — User actions
     func sendMessage(_ rawInput: String? = nil) async {
-        // rate → sanitise → save user msg → scope → classify
-        // → STORE / QUERY / MIXED / CHAT (see Features/Chat/ChatViewModel.swift)
+        // rate → sanitise → session message cap (ChatLimits) → save user msg
+        // → scope → classify (rolling tail) → STORE / QUERY / MIXED / CHAT
+        // STORE/CHAT get ChatLimits.rollingContext; QUERY uses last-12 in RAGAnswerService
     }
 
     func loadSession() async { /* messageRepository.fetchAll */ }
     func closeSession() async { /* CloseSessionUseCase — also inactivity / background */ }
 }
 ```
+
+**Chat context limits (task 19c — shipped):** `Core/Chat/ChatLimits.swift` — `maxCharactersPerMessage` (= `InputSanitiser` **500**), `maxMessagesPerSession` (**40**), `rollingContextMessageCount` (**12**). Quota UI: `SessionMessageQuotaBar`. Do not hard-code `4` / `500` / session caps in Views. Rolling window = short-term coherence; RAG memories = long-term facts. See `docs/tasks/phase_1/19c-chat-rolling-transcript_iOS.md` and `docs/learning/chat-session-message-context.md`.
 
 **ViewModel must never:**
 - Import `SwiftUI` (it may import `Foundation` and `Combine` only)

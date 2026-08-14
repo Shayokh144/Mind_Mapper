@@ -80,15 +80,16 @@ nonisolated struct RAGAnswerService: RAGAnswerServiceProtocol, @unchecked Sendab
 
     private func loadRecentMessages(sessionId: String) async throws -> [Message] {
         do {
-            return try await database.dbQueue.read { db in
+            let fetched = try await database.dbQueue.read { db in
                 try MessageRecord
                     .filter(Column("session_id") == sessionId)
                     .order(Column("created_at").desc)
-                    .limit(4)
+                    .limit(ChatLimits.rollingContextMessageCount)
                     .fetchAll(db)
                     .reversed()
                     .map(\.domainModel)
             }
+            return ChatLimits.rollingContext(from: Array(fetched))
         } catch {
             AppLogger.error("Failed to load recent messages for session \(sessionId)", error: error)
             throw AppError.loadFailed(underlying: error)
@@ -112,9 +113,11 @@ nonisolated struct RAGAnswerService: RAGAnswerServiceProtocol, @unchecked Sendab
             ),
         ]
 
-        for message in recentMessages {
-            messages.append(LLMMessage(role: message.role, content: message.content))
-        }
+        let history = ChatLimits.llmMessagesExcludingTrailingUser(
+            from: recentMessages,
+            currentText: question
+        )
+        messages.append(contentsOf: history)
         messages.append(LLMMessage(role: "user", content: question))
 
         let reply = try await llmClient.complete(

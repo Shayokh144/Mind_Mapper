@@ -1,7 +1,10 @@
 import Foundation
 
 protocol ClassifyIntentUseCaseProtocol {
-    func execute(_ input: String) async throws -> Intent
+    func execute(
+        _ input: String,
+        conversationContext: [LLMMessage]
+    ) async throws -> Intent
 }
 
 /// Labels a sanitised, in-scope message for Chat Orchestrator routing.
@@ -13,7 +16,10 @@ nonisolated final class ClassifyIntentUseCase: ClassifyIntentUseCaseProtocol, @u
         self.llmClient = llmClient
     }
 
-    func execute(_ input: String) async throws -> Intent {
+    func execute(
+        _ input: String,
+        conversationContext: [LLMMessage] = []
+    ) async throws -> Intent {
         if let local = LocalMessageClassifier.intentVerdict(for: input) {
             AppLogger.debug("ClassifyIntent local verdict=\(local.rawValue)")
             return local
@@ -21,6 +27,7 @@ nonisolated final class ClassifyIntentUseCase: ClassifyIntentUseCaseProtocol, @u
 
         let systemPrompt = """
             Classify this personal memory app message. Reply with exactly one word.
+            Prior turns (if any) are only for resolving follow-ups like "what about that?".
 
             STORE — user is sharing a fact, decision, or personal note
             ("I put my passport in the drawer", "We decided on Bali", "I keep my keys on the shelf")
@@ -37,12 +44,15 @@ nonisolated final class ClassifyIntentUseCase: ClassifyIntentUseCaseProtocol, @u
             Reply with exactly one word: STORE, QUERY, MIXED, or CHAT
             """
 
+        var messages: [LLMMessage] = [
+            LLMMessage(role: "system", content: systemPrompt),
+        ]
+        messages.append(contentsOf: conversationContext)
+        messages.append(LLMMessage(role: "user", content: input))
+
         let result = try await llmClient.complete(
             tier: .nano,
-            messages: [
-                LLMMessage(role: "system", content: systemPrompt),
-                LLMMessage(role: "user", content: input),
-            ],
+            messages: messages,
             maxTokens: 16,
             temperature: 0
         )

@@ -42,7 +42,7 @@ final class MemoryExtractorTests: XCTestCase {
         let result = try await sut.extract(from: "I put my keys on the shelf")
         XCTAssertEqual(result.cleanText, "Keys are on the shelf")
         XCTAssertEqual(mock.lastTier, .mini)
-        XCTAssertEqual(mock.lastMaxTokens, 1_024)
+        XCTAssertEqual(mock.lastMaxTokens, 512)
         XCTAssertEqual(mock.lastTemperature, 0)
     }
 

@@ -58,3 +58,5 @@ This is the most complex single task in the project. Break it into two sessions:
 - Minimal `AppRouter` in `Core/Navigation/` so `makeChatViewModel(sessionId:router:)` compiles; task 16 expands Root/Tab wiring.
 - `makeChatViewModel` returns `nil` when unauthenticated.
 - Tests: `ChatViewModelTests`, `MixedQueryServiceTests`.
+
+**Follow-on (task 19c):** Rolling transcript into `route` / use cases + session message cap — [19c-chat-rolling-transcript_iOS.md](19c-chat-rolling-transcript_iOS.md). Extend shipped `ChatViewModel`; do not recreate the orchestrator.

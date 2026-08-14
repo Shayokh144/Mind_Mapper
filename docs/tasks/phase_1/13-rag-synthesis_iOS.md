@@ -63,4 +63,5 @@ let sessions = RetrievedChunk.representedSessionIds(in: confident) // badge coun
 **As shipped (task 13):**
 - `RAGAnswer` returns `text` + `representedSessionIds` for the Chat badge.
 - RAG vector search uses `includeSuperseded: true` so Stage 3 can annotate outdated rows (save-time supersede lookup still excludes them via default `false`).
+- Stage 4 loads **last 12** session messages as recent chat context (`ChatLimits.rollingContextMessageCount`; task 19c). Same rolling window used for STORE/CHAT.
 - Tests: `MindMapperTests/RAGAnswerServiceTests.swift`.

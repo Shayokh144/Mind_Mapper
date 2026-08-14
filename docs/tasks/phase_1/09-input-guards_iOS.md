@@ -49,4 +49,6 @@ The scope guard LLM call (layer 2) must run AFTER sanitisation (layer 1) — nev
 
 **Wiring:** `AppContainer` exposes `scopeGuard` + `rateLimiter`. Chat ViewModel (task 18 / send pipeline) should call in order: `rateLimiter.check()` → `InputSanitiser.process` → `scopeGuard.check` → `recordAllowed` / `recordBlocked`.
 
+**Follow-on (task 19c):** Keep the **500** character per-message cap (`InputSanitiser.maxCharacters`). Add a separate **session message count** cap (`ChatLimits.maxMessagesPerSession`) — not a sanitiser concern; enforce in `ChatViewModel` before save. See [19c-chat-rolling-transcript_iOS.md](19c-chat-rolling-transcript_iOS.md).
+
 `RateLimiter` is `nonisolated` (opts out of default `MainActor` isolation) and lock-guarded so unit tests can deallocate it safely.

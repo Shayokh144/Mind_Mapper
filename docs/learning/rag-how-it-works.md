@@ -3,9 +3,9 @@
 Plain-language theory of **Retrieval-Augmented Generation**, plus how this app implements it end-to-end — from saving a fact in chat to answering “Where is my passport?” weeks later.
 
 **Related code:** `Core/RAG/`, `Core/VectorStore/VectorStore.swift`, `Domain/UseCases/{Save,Query,Mixed}Memory*.swift`, `Features/Chat/ChatViewModel.swift`  
-**Related tasks:** [`10`](../tasks/phase_1/10-intent-classifier_iOS.md)–[`14`](../tasks/phase_1/14-mixed-query-chat_iOS.md) (intent → save → retrieve → synthesise → orchestrate)  
+**Related tasks:** [`10`](../tasks/phase_1/10-intent-classifier_iOS.md)–[`14`](../tasks/phase_1/14-mixed-query-chat_iOS.md) (intent → save → retrieve → synthesise → orchestrate); [`19c`](../tasks/phase_1/19c-chat-rolling-transcript_iOS.md) (rolling chat window shared with STORE/CHAT)  
 **Related flow:** [`app-flow.md`](../design/app-flow.md) (Chat is where RAG runs; Memories tab is still a list UI)  
-**Also see:** [`embedding-blob-6144-bytes.md`](./embedding-blob-6144-bytes.md), [`llm-temperature.md`](./llm-temperature.md)
+**Also see:** [`embedding-blob-6144-bytes.md`](./embedding-blob-6144-bytes.md), [`llm-temperature.md`](./llm-temperature.md), [`chat-session-message-context.md`](./chat-session-message-context.md)
 
 ---
 
@@ -337,7 +337,9 @@ So “passport was in the drawer, then moved to the safe” can be answered with
 
 ### Stage 4 — LLM synthesis
 
-System prompt + numbered memories `[1] [Mar 3] …` + last **4** session messages + the question → `tier: .mini`, `temperature: 0.4`.
+System prompt + numbered memories `[1] [Mar 3] …` + last **12** session messages (`ChatLimits.rollingContextMessageCount`, shared with STORE/CHAT) + the question → `tier: .mini`, `temperature: 0.4`.
+
+Rolling chat here is **short-term glue** inside the current session. Long-term facts still come from retrieved memories (Stages 1–3). See [`chat-session-message-context.md`](./chat-session-message-context.md).
 
 ```131:149:iOSApp/MindMapper/MindMapper/Core/RAG/RAGAnswerService.swift
     static let systemPrompt = """

@@ -12,6 +12,7 @@ Mind_Mapper/
 └── docs/               ← planning docs and implementation tasks
     ├── planning/
     ├── design/
+    ├── learning/       ← plain-language deep dives (RAG, chat context, …)
     └── tasks/
         └── phase_1/    ← all build tasks (setup, iOS, backend)
 ```
@@ -29,7 +30,10 @@ Mind_Mapper/
 | [iOSApp/AGENT.md](iOSApp/AGENT.md) | MVVM + Clean Architecture rules, naming, DI, testing |
 | [docs/planning/execution-plan.md](docs/planning/execution-plan.md) | Complete build plan with phases and checkpoints |
 | [docs/design/theme-guide.md](docs/design/theme-guide.md) | Color tokens, typography, and reusable SwiftUI components |
+| [docs/design/app-flow.md](docs/design/app-flow.md) | Current signed-in / auth navigation (keep in sync when UI ships) |
 | [docs/pre-release-checklist.md](docs/pre-release-checklist.md) | Locked-in decisions, API key options, pre-release checklist |
+| [docs/learning/rag-how-it-works.md](docs/learning/rag-how-it-works.md) | RAG theory + how this repo implements it |
+| [docs/learning/chat-session-message-context.md](docs/learning/chat-session-message-context.md) | What each send’s LLM sees (rolling transcript → task **19c**) |
 
 ## Task Index (Phase 1)
 
@@ -56,6 +60,8 @@ Mind_Mapper/
 | 19 | [Delete Feature](docs/tasks/phase_1/19-delete-feature_iOS.md) | iOS |
 | 19a | [Chat Session List — Rename, Pin & Custom Tags](docs/tasks/phase_1/19a-chat-session-list-management_iOS.md) | iOS |
 | 19b | [Chat Send — Disable Input & Stop Generation](docs/tasks/phase_1/19b-chat-stop-generation_iOS.md) | iOS |
+| 19c | [Chat Rolling Transcript & Session Message Cap](docs/tasks/phase_1/19c-chat-rolling-transcript_iOS.md) | iOS |
+| 19d | [Local Reminders & Notifications](docs/tasks/phase_1/19d-local-reminders-notifications_iOS.md) | iOS |
 | 20 | [Full Test Suite](docs/tasks/phase_1/20-test-suite_iOS.md) | iOS |
 | 21 | [Polish & Portfolio Prep](docs/tasks/phase_1/21-polish-portfolio_iOS.md) | iOS |
 

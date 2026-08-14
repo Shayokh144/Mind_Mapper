@@ -1848,11 +1848,14 @@ User question
 │  Build prompt:                                          │
 │    [System: answer only from memories, note changes]    │
 │    [Memories: chunk1 (Mar 3), chunk2 (Mar 20) OUTDATED] │
-│    [Recent chat history: last 4 turns]                  │
+│    [Recent chat history: last N messages               │
+│     (ChatLimits.rollingContextMessageCount = 12)]      │
 │    [User question]                                      │
 │  → LLM produces grounded, chronological answer          │
 └─────────────────────────────────────────────────────────┘
 ```
+
+> **As shipped (task 19c):** Shared rolling window for QUERY/MIXED **and** STORE/CHAT; session cap 40 messages + quota bar. Details: `docs/tasks/phase_1/19c-chat-rolling-transcript_iOS.md`.
 
 ---
 
@@ -2392,6 +2395,8 @@ struct SessionListView: View {
 > **As shipped (task 18):** `ChatView` + `TypingIndicator` + `ChatBubble(isWarning:)`. ScrollViewReader / LazyVStack, cross-session `ThemeBadge`, input bar (`ThemeTextField` + counter + send), kebab menu (memories / delete). Close hooks (`.onDisappear` / `.onAppBackground`) and `.task { loadSession() }` retained from task 16. Sketch below still shows `ChatOrchestrator.shared` — prefer shipped `ChatViewModel` + DI. Memories list/detail UI for the kebab destination is task **22**.
 >
 > **As shipped (task 19b):** While a reply is in flight, the input field is disabled and send becomes **stop**. `stopGenerating()` cancels/ignores the pipeline task so a late LLM result is not appended; user can edit the incomplete turn and resend. See `docs/tasks/phase_1/19b-chat-stop-generation_iOS.md`.
+>
+> **As shipped (task 19c):** `ChatLimits` (500 chars/message, max **40** messages/session, rolling **12** for LLM). STORE/CHAT/intent get rolling context; QUERY uses last 12. `SessionMessageQuotaBar` above the input (green → red). Session-full blocks send. See `docs/tasks/phase_1/19c-chat-rolling-transcript_iOS.md`.
 
 ```swift
 // Features/Chat/ChatView.swift
@@ -3121,9 +3126,9 @@ Always delete local first, server second. If the server call fails, the user's l
 ---
 
 ## Phase 14 — Notifications & Reminders *(Low Priority — Build After Core)*
-⏱️ **Estimated time: 4–6 hours (when you're ready)**
+⏱️ **Estimated time: 4–6 hours (when you're ready)** → **Implementation task: [`19d-local-reminders-notifications_iOS.md`](../tasks/phase_1/19d-local-reminders-notifications_iOS.md)** (local `UNUserNotificationCenter`; LLM `should_set_notification` proposal; Yes/No + validated confirm sheet; Reminders tab + manual +; recurrence once/daily/weekly/monthly). Prefer that task over the older `.shared` / auto-schedule sketches below.
 
-> ⚠️ **Do not build this phase until Phases 0–13 are complete and the core app is stable.** This is a polish feature, not a core requirement.
+> ⚠️ **Do not build this phase until Phases 0–13 are complete and the core app is stable.** This is a polish feature, not a core requirement. Task **19d** may ship earlier once chat STORE is stable — follow 19d’s DI + confirm UX.
 
 **Goal:** Allow users to set reminders tied to specific memories or topics. For example, after saving "I need to buy a gift for my wife's birthday on June 20th", the app can proactively send a reminder notification a few days before.
 

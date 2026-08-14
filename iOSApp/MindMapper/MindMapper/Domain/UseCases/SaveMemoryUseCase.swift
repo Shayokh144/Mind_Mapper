@@ -1,7 +1,12 @@
 import Foundation
 
 protocol SaveMemoryUseCaseProtocol {
-    func execute(text: String, sessionId: String, userId: String) async throws -> String
+    func execute(
+        text: String,
+        sessionId: String,
+        userId: String,
+        conversationContext: [LLMMessage]
+    ) async throws -> String
 }
 
 /// STORE pipeline: extract → supersede lookup → embed → atomic SQLite write → vector → ack.
@@ -23,8 +28,16 @@ nonisolated final class SaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unchecked
         self.llmClient = llmClient
     }
 
-    func execute(text: String, sessionId: String, userId: String) async throws -> String {
-        let extraction = try await memoryExtractor.extract(from: text)
+    func execute(
+        text: String,
+        sessionId: String,
+        userId: String,
+        conversationContext: [LLMMessage] = []
+    ) async throws -> String {
+        let extraction = try await memoryExtractor.extract(
+            from: text,
+            conversationContext: conversationContext
+        )
         let supersedesId = try await resolveSupersedesId(hint: extraction.supersedesHint)
         let embedding = try await llmClient.embed(text: extraction.cleanText, tier: .embed)
 
@@ -49,7 +62,7 @@ nonisolated final class SaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unchecked
             superseding: supersedesId
         )
         try await vectorRepository.save(embedding: embedding, memoryId: memory.id)
-        return try await acknowledge(rawText: text)
+        return try await acknowledge(rawText: text, conversationContext: conversationContext)
     }
 
     private func resolveSupersedesId(hint: String?) async throws -> String? {
@@ -65,19 +78,26 @@ nonisolated final class SaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unchecked
         return candidates.first?.memoryId
     }
 
-    private func acknowledge(rawText: String) async throws -> String {
+    private func acknowledge(
+        rawText: String,
+        conversationContext: [LLMMessage]
+    ) async throws -> String {
+        var messages: [LLMMessage] = [
+            LLMMessage(
+                role: "system",
+                content: """
+                You are a warm personal memory assistant. Acknowledge what the user \
+                just told you in one friendly sentence. Use prior turns only for \
+                coherence (e.g. what "it" refers to). Do not add information they didn't say.
+                """
+            ),
+        ]
+        messages.append(contentsOf: conversationContext)
+        messages.append(LLMMessage(role: "user", content: rawText))
+
         let reply = try await llmClient.complete(
             tier: .mini,
-            messages: [
-                LLMMessage(
-                    role: "system",
-                    content: """
-                    You are a warm personal memory assistant. Acknowledge what the user \
-                    just told you in one friendly sentence. Do not add information they didn't say.
-                    """
-                ),
-                LLMMessage(role: "user", content: rawText),
-            ],
+            messages: messages,
             maxTokens: 60,
             temperature: 0.7
         )

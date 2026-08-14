@@ -20,6 +20,8 @@ These decisions apply throughout the project. Review them before release to conf
 | **Code location** | `iOSApp/` | Same |
 | **Architecture guide** | `iOSApp/AGENT.md` | Same |
 | **Docs & tasks** | `docs/` | Same |
+| **Chat context** | `ChatLimits`: 500 chars/message; rolling last-12 transcript; max 40 messages/session + quota bar | Same |
+| **Local reminders** | Not in app yet — task **19d** (confirm sheet; once/daily/weekly/monthly) | Local `UNUserNotificationCenter` only (no remote push in phase 1) |
 | **Crash / error logging** | Local `AppLogger` (`NSLog`) in `Core/Logging/AppLogger.swift` | Wire `AppLogger` to Sentry (or equivalent) — see checklist below |
 
 ### LLM model tiers — primary + fallback

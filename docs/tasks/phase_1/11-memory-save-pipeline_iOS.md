@@ -47,3 +47,5 @@ Chat View — the assistant's acknowledgement bubble after a user stores a fact.
 The atomic GRDB write transaction (step 4) is critical — if writing the memory entities fails, the memory row itself must also be rolled back. Use `db.write { ... }` with all inserts inside the same closure to guarantee atomicity. The cosine similarity computation should be moved off the main thread using `Task.detached` when the vector store grows large — add a TODO comment for this optimization.
 
 **Wiring:** `AppContainer.makeSaveMemoryUseCase()` injects repos + `MemoryExtractor` + `LLMClient.shared`. Chat (task 14) calls `execute(text:sessionId:userId:)` after STORE intent.
+
+**Follow-on (task 19d):** Local reminders — extractor returns `should_set_notification` + optional title/description/datetime/recurrence (`null` if unclear); Confirm UX before schedule — [19d-local-reminders-notifications_iOS.md](19d-local-reminders-notifications_iOS.md). Do not auto-schedule from extract alone.

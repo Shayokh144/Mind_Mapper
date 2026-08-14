@@ -129,6 +129,41 @@ final class SaveMemoryUseCaseTests: XCTestCase {
         XCTAssertEqual(mockLLM.embedCallCount, 2)
     }
 
+    func test_execute_passesConversationContextToExtractor() async throws {
+        let extraction = ExtractionResult(
+            cleanText: "Passport is inside a blue colored file",
+            entities: [.init(type: "product", value: "passport")],
+            supersedesHint: nil
+        )
+        mockLLM.completeResult = "Got it — noted the blue file."
+        mockLLM.embedResult = Self.makeEmbedding(seed: 3)
+        let extractor = MockMemoryExtractor(result: extraction)
+
+        let sut = SaveMemoryUseCase(
+            memoryRepository: memoryRepository,
+            vectorRepository: vectorRepository,
+            memoryExtractor: extractor,
+            llmClient: mockLLM
+        )
+
+        let context = [
+            LLMMessage(role: "user", content: "I kept my passport in the 3rd drawer"),
+            LLMMessage(role: "assistant", content: "Got it."),
+        ]
+        _ = try await sut.execute(
+            text: "It is inside a blue colored file.",
+            sessionId: session.id,
+            userId: user.id,
+            conversationContext: context
+        )
+
+        XCTAssertEqual(extractor.extractCallCount, 1)
+        XCTAssertEqual(extractor.lastConversationContext?.count, 2)
+        XCTAssertEqual(extractor.lastRawText, "It is inside a blue colored file.")
+        // Ack complete call includes system + context + current.
+        XCTAssertEqual(mockLLM.lastMessages?.count, 4)
+    }
+
     private static func makeEmbedding(seed: Int) -> [Float] {
         (0..<1_536).map { index in
             Float((index + seed) % 97) / 97.0
