@@ -53,6 +53,6 @@ Chat input bar: text field disabled while a reply is in flight; send button swap
 - Stop prefills the last user message into the input (`isEditingFailedTurn = true`).
 - `ThemeTextField.isEnabled` for disabled styling while loading.
 
-**Already shipped:** `isLoading` typing indicator, `canSend` includes `!isLoading`, incomplete-turn retry / edit UI.
+**Already shipped:** `isLoading` typing indicator, `canSend` includes `!isLoading`, incomplete-turn retry / edit UI. Scope-block warnings are also retryable (warning is removed on resend). Sanitiser / rate-limit blocks keep composer text.
 
 **Out of scope:** Streaming token UI, aborting Edge Functions server-side.

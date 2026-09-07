@@ -26,11 +26,16 @@ struct MessageDisplayModel: Identifiable, Equatable, Sendable {
         self.isWarning = isWarning
     }
 
-    init(from message: Message, isWarning: Bool = false) {
+    init(from message: Message, isWarning: Bool? = nil) {
         id = message.id
         role = message.role
         content = message.content
         createdAt = message.createdAt
-        self.isWarning = isWarning
+        self.isWarning = isWarning ?? Self.isScopeWarning(role: message.role, content: message.content)
+    }
+
+    /// Scope-block copy is not stored as a flag; match it when reloading history.
+    static func isScopeWarning(role: String, content: String) -> Bool {
+        role == "assistant" && content == L10n.Guard.scopeBlocked
     }
 }

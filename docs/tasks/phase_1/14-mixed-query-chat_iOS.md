@@ -38,7 +38,7 @@ Chat View — the central hub that drives the entire chat experience. All messag
 - [x] Sending 'I put my keys on the table' → SaveMemoryUseCase called, acknowledgement bubble appears. *(unit test)*
 - [x] 'Where are my keys?' → QueryMemoryUseCase called, answer bubble appears with retrieved memory. *(unit test)*
 - [x] 'What dress ideas did we discuss and suggest more?' → MixedQueryUseCase called, parallel calls fire, merged answer appears. *(unit + MixedQueryService tests)*
-- [x] Scope-blocked / code-blocked messages → error message appears, no use case called. *(note: "Debug this code" hits InputSanitiser via `"debug this"`; ScopeGuard tested with trivia)*
+- [x] Scope-blocked / code-blocked messages → no STORE/QUERY/MIXED call. Scope shows a warning bubble with Retry / Edit & retry. Code/rate-limit blocks keep the composer text.
 - [x] `isLoading` is always false after any path completes — confirmed in unit tests.
 - [x] Unit tests pass with mock dependencies.
 

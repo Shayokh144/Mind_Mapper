@@ -68,16 +68,16 @@ final class ChatViewModel: ObservableObject {
         lastAnswerSessionCount > 1
     }
 
-    /// Last bubble is a user turn with no assistant reply yet (failed / interrupted).
+    /// Last bubble is a failed user turn: no assistant reply, or a scope-block warning.
     /// Survives leaving and reopening the chat because it is derived from message history.
     var canRetryLastTurn: Bool {
         guard !isLoading, !isEditingFailedTurn else { return false }
-        return messages.last?.isUser == true
+        return failedTurnUserMessage() != nil
     }
 
     var lastFailedUserMessage: MessageDisplayModel? {
         guard canRetryLastTurn else { return nil }
-        return messages.last
+        return failedTurnUserMessage()
     }
 
     init(
@@ -230,9 +230,11 @@ final class ChatViewModel: ObservableObject {
     }
 
     func retryLastTurn() async {
-        guard let last = messages.last, last.isUser, !isLoading else { return }
+        guard let user = failedTurnUserMessage(), !isLoading else { return }
         isEditingFailedTurn = false
-        let task = Task { await self.performRetry(content: last.content) }
+        let content = user.content
+        await removeTrailingScopeWarning()
+        let task = Task { await self.performRetry(content: content) }
         pipelineTask = task
         await task.value
         if pipelineTask == task {
@@ -241,8 +243,8 @@ final class ChatViewModel: ObservableObject {
     }
 
     func beginEditFailedTurn() {
-        guard let last = messages.last, last.isUser, !isLoading else { return }
-        inputText = last.content
+        guard let user = failedTurnUserMessage(), !isLoading else { return }
+        inputText = user.content
         isEditingFailedTurn = true
         errorMessage = nil
     }
@@ -263,6 +265,7 @@ final class ChatViewModel: ObservableObject {
             return
         }
 
+        let fromComposer = rawInput == nil
         let raw = (rawInput ?? inputText).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return }
 
@@ -271,13 +274,14 @@ final class ChatViewModel: ObservableObject {
             return
         }
 
-        if rawInput == nil {
-            inputText = ""
-        }
         let generation = beginPipeline()
         defer { endPipelineIfCurrent(generation) }
 
         guard let sanitised = prepareSanitisedInput(raw) else { return }
+
+        if fromComposer {
+            inputText = ""
+        }
 
         let userMessage = Message(sessionId: sessionId, role: "user", content: raw)
         do {
@@ -287,6 +291,9 @@ final class ChatViewModel: ObservableObject {
             markActivityForSessionClose()
         } catch {
             if isPipelineActive(generation) {
+                if fromComposer {
+                    inputText = raw
+                }
                 errorMessage = mapError(error)
             }
             return
@@ -311,7 +318,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func submitEditedFailedTurn(_ rawInput: String?) async {
-        guard let last = messages.last, last.isUser else {
+        guard let user = failedTurnUserMessage() else {
             isEditingFailedTurn = false
             await performSend(rawInput)
             return
@@ -326,17 +333,21 @@ final class ChatViewModel: ObservableObject {
 
         guard let sanitised = prepareSanitisedInput(raw) else { return }
 
+        await removeTrailingScopeWarning()
+
         let updated = Message(
-            id: last.id,
+            id: user.id,
             sessionId: sessionId,
             role: "user",
             content: raw,
-            createdAt: last.createdAt
+            createdAt: user.createdAt
         )
         do {
             try await dependencies.messageRepository.update(updated)
             guard isPipelineActive(generation) else { return }
-            messages[messages.count - 1] = MessageDisplayModel(from: updated)
+            if let index = messages.firstIndex(where: { $0.id == user.id }) {
+                messages[index] = MessageDisplayModel(from: updated)
+            }
             inputText = ""
             isEditingFailedTurn = false
             markActivityForSessionClose()
@@ -564,6 +575,30 @@ final class ChatViewModel: ObservableObject {
             from: rolling,
             currentText: excludingCurrentText
         )
+    }
+
+    /// User bubble to retry: last user turn, or the user turn before a scope warning.
+    private func failedTurnUserMessage() -> MessageDisplayModel? {
+        if let last = messages.last, last.isUser { return last }
+        guard messages.count >= 2,
+              let last = messages.last, last.isWarning, last.isAssistant,
+              messages[messages.count - 2].isUser
+        else { return nil }
+        return messages[messages.count - 2]
+    }
+
+    private var hasTrailingScopeWarning: Bool {
+        failedTurnUserMessage() != nil && messages.last?.isWarning == true
+    }
+
+    private func removeTrailingScopeWarning() async {
+        guard hasTrailingScopeWarning, let warning = messages.last else { return }
+        messages.removeLast()
+        do {
+            try await dependencies.messageRepository.delete(id: warning.id)
+        } catch {
+            AppLogger.error("Failed to delete scope-warning message \(warning.id)", error: error)
+        }
     }
 
     private func appendAssistant(

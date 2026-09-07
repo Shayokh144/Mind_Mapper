@@ -164,6 +164,12 @@ nonisolated final class MockMessageRepository: MessageRepositoryProtocol, @unche
         }
     }
 
+    func delete(id: String) async throws {
+        if let saveError { throw saveError }
+        messages.removeAll { $0.id == id }
+        saved.removeAll { $0.id == id }
+    }
+
     func fetchAll(for sessionId: String) async throws -> [Message] {
         if let fetchError { throw fetchError }
         return messages.filter { $0.sessionId == sessionId }

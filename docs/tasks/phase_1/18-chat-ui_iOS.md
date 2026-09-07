@@ -62,9 +62,10 @@ The `ChatBubble` component from the theme system (Task 5) handles all bubble sty
 - Input bar, typing indicator, kebab delete, cross-session badge (task 18).
 - **Follow-on (task 19b):** disable input while loading; send → stop; cancel/ignore in-flight reply — [19b-chat-stop-generation_iOS.md](19b-chat-stop-generation_iOS.md).
 - Full `ChatView` with ScrollViewReader / LazyVStack, `TypingIndicator` (`Core/Theme/Components/`), input bar, kebab menu.
-- `ChatBubble(isWarning:)` for scope-blocked replies; scope no longer duplicates into `errorMessage`.
+- `ChatBubble(isWarning:)` for scope-blocked replies; scope no longer duplicates into `errorMessage`. **Retry** / **Edit & retry** still appear under that warning so the user can rephrase. Resend deletes the warning bubble first.
+- Sanitiser / rate-limit blocks keep the text in the composer (do not clear it).
 - `ThemeTextField` optional `focus:` for `@FocusState`.
 - Menu delete → confirmation → `DeleteSessionUseCase` → `navigateBack()` (task 19 Chat delete step covered).
 - Canvas: `TypingIndicator` + `ChatBubble` previews cover light/dark; full ChatView needs a live session / simulator for end-to-end.
 - Leaving with no messages discards the draft session (`onLeaveChat` → `DeleteSessionUseCase`) so empty chats never appear in the list.
-- Incomplete last user turn (no assistant reply): **Retry** / **Edit & retry** directly below that user bubble; reopening the chat still shows this when the last stored message is from the user. Editing mode keeps a caption + cancel near the input bar.
+- Incomplete last user turn (no assistant reply): **Retry** / **Edit & retry** directly below that user bubble; reopening the chat still shows this when the last stored message is from the user, or when the last stored assistant copy is the scope-block warning. Editing mode keeps a caption + cancel near the input bar.

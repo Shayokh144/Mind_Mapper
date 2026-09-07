@@ -30,6 +30,17 @@ nonisolated struct MessageRepository: MessageRepositoryProtocol {
         }
     }
 
+    func delete(id: String) async throws {
+        do {
+            try await database.dbQueue.write { db in
+                try MessageRecord.filter(Column("id") == id).deleteAll(db)
+            }
+        } catch {
+            AppLogger.error("Failed to delete message \(id)", error: error)
+            throw AppError.saveFailed(underlying: error)
+        }
+    }
+
     func fetchAll(for sessionId: String) async throws -> [Message] {
         do {
             return try await database.dbQueue.read { db in

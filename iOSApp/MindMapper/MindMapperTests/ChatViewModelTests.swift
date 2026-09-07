@@ -287,7 +287,7 @@ final class ChatViewModelTests: XCTestCase {
     }
 
     func test_sendMessage_scopeBlocked_showsWarningBubbleAndSkipsUseCases() async {
-        scopeGuard.result = .outOfScope("I can only help with your personal memories and plans.")
+        scopeGuard.result = .outOfScope(L10n.Guard.scopeBlocked)
         classify.intent = .store
 
         // Passes InputSanitiser ("debug this" is a code signal) but fails ScopeGuard.
@@ -300,31 +300,81 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(mixedQuery.executeCallCount, 0)
         XCTAssertNil(sut.errorMessage)
         XCTAssertEqual(sut.messages.last?.role, "assistant")
-        XCTAssertEqual(
-            sut.messages.last?.content,
-            "I can only help with your personal memories and plans."
-        )
+        XCTAssertEqual(sut.messages.last?.content, L10n.Guard.scopeBlocked)
         XCTAssertEqual(sut.messages.last?.isWarning, true)
+        XCTAssertTrue(sut.canRetryLastTurn)
+        XCTAssertEqual(sut.lastFailedUserMessage?.content, "What is the capital of France?")
         XCTAssertEqual(rateLimiter.recordBlockedCallCount, 1)
         XCTAssertFalse(sut.isLoading)
     }
 
-    func test_sendMessage_sanitiserBlocksCode_skipsScopeAndUseCases() async {
-        await sut.sendMessage("```swift\nfunc foo() {}\n```")
+    func test_retryLastTurn_afterScopeBlock_removesWarningAndResends() async {
+        scopeGuard.result = .outOfScope(L10n.Guard.scopeBlocked)
+        await sut.sendMessage("What is the capital of France?")
+        XCTAssertTrue(sut.canRetryLastTurn)
+
+        scopeGuard.result = .inScope
+        classify.intent = .chat
+        llm.completeResult = "Happy to help with your plans."
+
+        await sut.retryLastTurn()
+
+        XCTAssertEqual(classify.executeCallCount, 1)
+        XCTAssertEqual(sut.messages.count, 2)
+        XCTAssertEqual(sut.messages[0].role, "user")
+        XCTAssertEqual(sut.messages[1].content, "Happy to help with your plans.")
+        XCTAssertEqual(sut.messages[1].isWarning, false)
+        XCTAssertFalse(sut.canRetryLastTurn)
+        XCTAssertFalse(messages.messages.contains { $0.content == L10n.Guard.scopeBlocked })
+    }
+
+    func test_editAndRetry_afterScopeBlock_updatesUserMessage() async {
+        scopeGuard.result = .outOfScope(L10n.Guard.scopeBlocked)
+        await sut.sendMessage("What is the capital of France?")
+
+        sut.beginEditFailedTurn()
+        XCTAssertTrue(sut.isEditingFailedTurn)
+        XCTAssertEqual(sut.inputText, "What is the capital of France?")
+        XCTAssertFalse(sut.canRetryLastTurn)
+
+        scopeGuard.result = .inScope
+        classify.intent = .store
+        saveMemory.result = SaveMemoryResult(
+            ackText: "Noted the Dhaka outlet.",
+            memoryId: "mem-outlet",
+            reminderProposal: nil
+        )
+        sut.inputText = "Need to visit the Dhaka outlet for a dress"
+        await sut.sendMessage()
+
+        XCTAssertFalse(sut.isEditingFailedTurn)
+        XCTAssertEqual(sut.inputText, "")
+        XCTAssertEqual(sut.messages.count, 2)
+        XCTAssertEqual(sut.messages[0].content, "Need to visit the Dhaka outlet for a dress")
+        XCTAssertEqual(sut.messages[1].content, "Noted the Dhaka outlet.")
+        XCTAssertFalse(sut.canRetryLastTurn)
+    }
+
+    func test_sendMessage_sanitiserBlocksCode_keepsComposerText() async {
+        let blocked = "```swift\nfunc foo() {}\n```"
+        sut.inputText = blocked
+        await sut.sendMessage()
 
         XCTAssertEqual(scopeGuard.checkCallCount, 0)
         XCTAssertEqual(classify.executeCallCount, 0)
         XCTAssertEqual(saveMemory.executeCallCount, 0)
         XCTAssertNotNil(sut.errorMessage)
         XCTAssertTrue(sut.messages.isEmpty)
+        XCTAssertEqual(sut.inputText, blocked)
         XCTAssertEqual(rateLimiter.recordBlockedCallCount, 1)
         XCTAssertFalse(sut.isLoading)
     }
 
-    func test_sendMessage_rateLimited_setsErrorAndSkipsEverything() async {
+    func test_sendMessage_rateLimited_keepsComposerText() async {
         rateLimiter.checkResult = .throttled("Please wait 60 seconds before sending another message.")
+        sut.inputText = "I put my keys on the table"
 
-        await sut.sendMessage("I put my keys on the table")
+        await sut.sendMessage()
 
         XCTAssertEqual(scopeGuard.checkCallCount, 0)
         XCTAssertEqual(classify.executeCallCount, 0)
@@ -334,6 +384,7 @@ final class ChatViewModelTests: XCTestCase {
             "Please wait 60 seconds before sending another message."
         )
         XCTAssertTrue(sut.messages.isEmpty)
+        XCTAssertEqual(sut.inputText, "I put my keys on the table")
         XCTAssertFalse(sut.isLoading)
     }
 
@@ -353,6 +404,7 @@ final class ChatViewModelTests: XCTestCase {
         // User message was saved before the failure
         XCTAssertEqual(sut.messages.count, 1)
         XCTAssertEqual(sut.messages[0].role, "user")
+        XCTAssertTrue(sut.canRetryLastTurn)
     }
 
     func test_loadSession_populatesMessages() async {
@@ -366,6 +418,27 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(sut.messages.count, 2)
         XCTAssertEqual(sut.currentSession?.id, session.id)
         XCTAssertFalse(sut.isLoading)
+    }
+
+    func test_loadSession_trailingScopeWarning_isRetryable() async {
+        messages.messages = [
+            Message(
+                sessionId: session.id,
+                role: "user",
+                content: "What is the capital of France?"
+            ),
+            Message(
+                sessionId: session.id,
+                role: "assistant",
+                content: L10n.Guard.scopeBlocked
+            ),
+        ]
+
+        await sut.loadSession()
+
+        XCTAssertEqual(sut.messages.last?.isWarning, true)
+        XCTAssertTrue(sut.canRetryLastTurn)
+        XCTAssertEqual(sut.lastFailedUserMessage?.content, "What is the capital of France?")
     }
 
     func test_startNewSession_resetsMessages() async throws {
