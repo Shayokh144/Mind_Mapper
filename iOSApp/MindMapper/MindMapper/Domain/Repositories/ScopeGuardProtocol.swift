@@ -6,5 +6,8 @@ enum ScopeResult: Equatable, Sendable {
 }
 
 nonisolated protocol ScopeGuardProtocol: Sendable {
-    func check(_ input: String) async throws -> ScopeResult
+    func check(
+        _ input: String,
+        conversationContext: [LLMMessage]
+    ) async throws -> ScopeResult
 }

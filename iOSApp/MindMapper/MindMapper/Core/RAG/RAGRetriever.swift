@@ -128,7 +128,7 @@ nonisolated struct RAGRetriever: @unchecked Sendable {
     /// so vector-only retrieval still works.
     func extractEntitiesFromQuestion(_ question: String) async -> [String] {
         let prompt = """
-        Extract key searchable nouns from this question (people, objects, topics, places).
+        Extract key searchable nouns from this question (people, objects, topics, places, shops, links).
         Reply with a JSON array of strings only. Maximum 4 items. No explanation.
         Example: ["wife", "gift", "passport", "drawer"]
         Question: "\(question)"
@@ -182,7 +182,7 @@ nonisolated struct RAGRetriever: @unchecked Sendable {
 
                 for hint in hints {
                     let sql = """
-                    SELECT m.id, m.clean_text, m.created_at, m.is_superseded,
+                    SELECT m.id, m.clean_text, m.raw_text, m.created_at, m.is_superseded,
                            m.supersedes_id, m.session_id
                     FROM memories m
                     JOIN memory_entities me ON me.memory_id = m.id
@@ -201,7 +201,10 @@ nonisolated struct RAGRetriever: @unchecked Sendable {
                         chunks.append(
                             RetrievedChunk(
                                 memoryId: memoryId,
-                                cleanText: row["clean_text"],
+                                cleanText: MemoryLinkPreserver.mergingLinks(
+                                    from: row["raw_text"],
+                                    into: row["clean_text"]
+                                ),
                                 createdAt: row["created_at"],
                                 isSuperseded: row["is_superseded"],
                                 supersedesId: row["supersedes_id"],

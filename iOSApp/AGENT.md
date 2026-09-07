@@ -74,12 +74,12 @@ iOSApp/
 │   ├── Database/                   ← DatabaseManager, migrations (v1, v2_session_pin, v3_reminders)
 │   ├── Network/                    ← LLMClient, SupabaseClient wrapper
 │   ├── VectorStore/                ← Cosine similarity over local embedding blobs
-│   ├── RAG/                        ← MemoryExtractor, RAGRetriever, RAGAnswerService, MixedQueryService
+│   ├── RAG/                        ← MemoryExtractor, MemoryLinkPreserver, RAGRetriever, RAGAnswerService, MixedQueryService
 │   ├── Navigation/                 ← AppRouter (NavigationStack path + sheets)
 │   ├── Lifecycle/                  ← AppLifecycleListener (session close on background)
 │   ├── Localization/               ← L10n typed accessors for Localizable.xcstrings
 │   ├── DI/                         ← AppContainer (dependency injection)
-│   └── Guards/                     ← InputSanitiser, ScopeGuard, RateLimiter
+│   └── Guards/                     ← InputSanitiser, ScopeGuard, RateLimiter, LocalMessageClassifier
 │
 ├── Domain/
 │   ├── Models/                     ← Pure Swift structs — Message, Memory, Session
@@ -238,7 +238,7 @@ final class ChatViewModel: ObservableObject {
     // MARK: — User actions
     func sendMessage(_ rawInput: String? = nil) async {
         // rate → sanitise → session message cap (ChatLimits) → save user msg
-        // → scope → classify (rolling tail) → STORE / QUERY / MIXED / CHAT
+        // → scope + classify (rolling tail) → STORE / QUERY / MIXED / CHAT
         // STORE/CHAT get ChatLimits.rollingContext; QUERY uses last-12 in RAGAnswerService
     }
 

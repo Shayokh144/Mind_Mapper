@@ -4,7 +4,8 @@ protocol MixedQueryUseCaseProtocol {
     func execute(
         question: String,
         sessionId: String,
-        userId: String
+        userId: String,
+        conversationContext: [LLMMessage]
     ) async throws -> RAGAnswer
 }
 
@@ -19,12 +20,14 @@ nonisolated final class MixedQueryUseCase: MixedQueryUseCaseProtocol, @unchecked
     func execute(
         question: String,
         sessionId: String,
-        userId: String
+        userId: String,
+        conversationContext: [LLMMessage] = []
     ) async throws -> RAGAnswer {
         try await service.answer(
             question: question,
             sessionId: sessionId,
-            userId: userId
+            userId: userId,
+            conversationContext: conversationContext
         )
     }
 }

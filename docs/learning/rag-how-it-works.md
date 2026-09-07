@@ -95,18 +95,26 @@ flowchart TD
 
 Before any retrieval, chat classifies the message.
 
-```22:37:iOSApp/MindMapper/MindMapper/Domain/UseCases/ClassifyIntentUseCase.swift
+```28:51:iOSApp/MindMapper/MindMapper/Domain/UseCases/ClassifyIntentUseCase.swift
         let systemPrompt = """
             Classify this personal memory app message. Reply with exactly one word.
+            Prior turns (if any) resolve follow-ups like "what about that?" \
+            Treat new to-dos as STORE in a planning thread. Treat plan-research \
+            questions (timing, weather, packing, what to do there) as MIXED.
 
-            STORE — user is sharing a fact, decision, or personal note
-            ("I put my passport in the drawer", "We decided on Bali", "I keep my keys on the shelf")
+            STORE — sharing a fact, decision, note, trip plan, to-do, or file path
+            ("I put my passport in the drawer", "We decided on Bali", \
+            "Need to visit the outlet for a dress", \
+            "Also this shop for a sharee: https://example.com/shop")
 
-            QUERY — user is asking about something previously stored
-            ("Where is my passport?", "What did we decide about the trip?", "Let me know about the trip details")
+            QUERY — asking only about something previously stored
+            ("Where is my passport?", "What did we decide about the trip?", \
+            "What do I need to do in Bangladesh?")
 
-            MIXED — user asks something needing both stored memory AND general knowledge
-            ("What dress ideas did we discuss, and can you suggest more options?")
+            MIXED — stored memory and/or general knowledge to help a personal plan
+            ("What dress ideas did we discuss, and can you suggest more options?", \
+            "What's the best time to visit Bangladesh?", \
+            "What should I pack for the trip?")
 
             CHAT — casual talk, no fact to store or find
             ("Thanks!", "That's helpful", "Good morning")
@@ -175,22 +183,23 @@ Task [`11-memory-save-pipeline_iOS.md`](../tasks/phase_1/11-memory-save-pipeline
     }
 ```
 
-Extractor shape (`Core/RAG/MemoryExtractor.swift`):
+Extractor shape (`Core/RAG/MemoryExtractor.swift`): after JSON decode, `preservingLinks(from:)` copies any URL or local file path from the raw note into `clean_text` (and adds a `url` entity) so recall is not at the mercy of paraphrasing.
 
-```65:77:iOSApp/MindMapper/MindMapper/Core/RAG/MemoryExtractor.swift
+```138:177:iOSApp/MindMapper/MindMapper/Core/RAG/MemoryExtractor.swift
         let systemPrompt = """
         You are a personal memory extraction assistant.
-        Extract structured information from the user message.
+        Extract structured information from the latest user message.
+        Prior conversation turns (if any) are only for resolving pronouns and incomplete \
+        references (e.g. "it" → the passport mentioned earlier). Do NOT merge the whole \
+        thread into one memory — output one clean_text for the NEW fact only.
         Reply ONLY with valid JSON, no other text. Keep the JSON compact.
 
         JSON format:
         {
           "clean_text": "normalised fact in standalone form",
           "entities": [
-            { "type": "person|category|topic_id|product|location", "value": "the value" }
+            { "type": "person|category|topic_id|product|location|url", "value": "the value" }
           ],
-          "supersedes_hint": "word or phrase suggesting this replaces an older decision, or null"
-        }
 ```
 
 **Supersede example:** “Actually, a watch instead of the perfume” → hint embeds → vector search (threshold **0.80**) finds the old gift memory → new row links `supersedes_id`, old row `is_superseded = true`. Query-time Stage 3 can still *read* superseded rows to explain history.
@@ -337,14 +346,25 @@ So “passport was in the drawer, then moved to the safe” can be answered with
 
 ### Stage 4 — LLM synthesis
 
-System prompt + numbered memories `[1] [Mar 3] …` + last **12** session messages (`ChatLimits.rollingContextMessageCount`, shared with STORE/CHAT) + the question → `tier: .mini`, `temperature: 0.4`.
+System prompt + numbered memories `[1] [Mar 3] …` + last **12** session messages (`ChatLimits.rollingContextMessageCount`, shared with STORE/CHAT) + the question → `tier: .mini`, `temperature: 0.2`. Plan-recall answers are a short lead-in plus bullets from stored memories only — no extra sightseeing. Stored URLs must be copied in full. Retrieval also splices links from `raw_text` when `clean_text` dropped them. Follow-ups like “try again” / “find the link” search using the last user turns, not the retry sentence alone.
 
 Rolling chat here is **short-term glue** inside the current session. Long-term facts still come from retrieved memories (Stages 1–3). See [`chat-session-message-context.md`](./chat-session-message-context.md).
 
-```131:149:iOSApp/MindMapper/MindMapper/Core/RAG/RAGAnswerService.swift
+```131:155:iOSApp/MindMapper/MindMapper/Core/RAG/RAGAnswerService.swift
     static let systemPrompt = """
     You are a personal memory assistant. Answer ONLY from the provided memories.
-    Do not guess or add information not in the memories.
+    Do not guess. Do not add sightseeing, tips, or suggestions the user did not store.
+    Keep names, places, and URLs exactly as they appear in the memories.
+    If a memory includes a URL or file path, copy that full URL into the answer.
+    Never replace a stored link with "the Facebook page" or "an online store".
+    If the user asks for a link, quote the stored URL. Only say it was not stored \
+    if no URL appears in the memories.
+
+    When the user asks what they planned, decided, or need to do:
+    - Start with one short line such as "Based on your current plan:"
+    - Then a bullet list, one stored item per line
+    - Put any stored URL on the same bullet as that item
+    - Do not add extra places or ideas
 
     If multiple memories show the same topic evolving over time:
     - Acknowledge the history ("You originally thought X...")
@@ -370,9 +390,15 @@ Rolling chat here is **short-term glue** inside the current session. Long-term f
 
 Task [`14-mixed-query-chat_iOS.md`](../tasks/phase_1/14-mixed-query-chat_iOS.md).
 
-Same RAG path in parallel with a general `.full` call, then a `.mini` merge that **leads with personal memories**:
+Same RAG path in parallel with a general `.full` call, then a `.mini` merge. Merge **leads with personal memories**, uses prior chat turns, and answers plan-help questions (gifts, budget destinations, packing). It asks clarifying questions only when a missing personal fact would change the answer — not a gift-only checklist.
 
-```21:43:iOSApp/MindMapper/MindMapper/Core/RAG/MixedQueryService.swift
+```16:40:iOSApp/MindMapper/MindMapper/Core/RAG/MixedQueryService.swift
+    func answer(
+        question: String,
+        sessionId: String,
+        userId: String,
+        conversationContext: [LLMMessage] = []
+    ) async throws -> RAGAnswer {
         async let memoryTask = ragAnswerService.answer(
             question: question,
             sessionId: sessionId,
@@ -384,18 +410,13 @@ Same RAG path in parallel with a general `.full` call, then a `.mini` merge that
                 LLMMessage(
                     role: "system",
                     content: """
-                    You are a knowledgeable assistant. Answer this question with general \
-                    knowledge only. Be concise. Do not invent the user's personal facts.
+                    You are a knowledgeable assistant. Answer with general knowledge only. \
+                    Be concise. Do not invent the user's personal facts or constraints \
+                    (who a gift is for, budget amount, dates, group size, etc.). \
+                    If a personal detail would change the answer and is missing, \
+                    say which detail is unknown — do not invent it.
                     """
                 ),
-                LLMMessage(role: "user", content: question),
-            ],
-            maxTokens: 300,
-            temperature: 0.6
-        )
-
-        let memoryAnswer = try await memoryTask
-        let general = try await generalTask
 ```
 
 `representedSessionIds` still come from the memory branch (badge behaviour matches QUERY).

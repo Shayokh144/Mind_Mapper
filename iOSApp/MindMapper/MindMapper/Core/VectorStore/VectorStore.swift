@@ -92,7 +92,10 @@ nonisolated struct VectorStore: Sendable {
             guard score >= threshold else { return nil }
             return VectorSearchResult(
                 memoryId: pair.memory.id,
-                cleanText: pair.memory.cleanText,
+                cleanText: MemoryLinkPreserver.mergingLinks(
+                    from: pair.memory.rawText,
+                    into: pair.memory.cleanText
+                ),
                 similarity: score,
                 createdAt: pair.memory.createdAt,
                 sessionId: pair.memory.sessionId,

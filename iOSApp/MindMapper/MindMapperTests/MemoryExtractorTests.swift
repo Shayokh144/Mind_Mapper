@@ -44,6 +44,27 @@ final class MemoryExtractorTests: XCTestCase {
         XCTAssertEqual(mock.lastTier, .mini)
         XCTAssertEqual(mock.lastMaxTokens, 768)
         XCTAssertEqual(mock.lastTemperature, 0)
+        let system = mock.lastMessages?.first?.content ?? ""
+        XCTAssertTrue(system.contains("Never drop, shorten, or paraphrase a link"))
+        XCTAssertTrue(system.contains("url"))
+    }
+
+    func test_extract_keepsURLWhenLLMOmitsIt() async throws {
+        let url = "https://www.facebook.com/share/r/1drnm7bd4K/?mibextid=wwXIfr"
+        let mock = MockLLMService()
+        mock.completeResult = """
+        {
+          "clean_text": "User plans to visit a Facebook online store for a Sharee",
+          "entities": [{ "type": "product", "value": "Sharee" }],
+          "supersedes_hint": null
+        }
+        """
+        let sut = MemoryExtractor(llmClient: mock)
+        let result = try await sut.extract(
+            from: "Need to visit this online store for Sharee : \(url)"
+        )
+        XCTAssertTrue(result.cleanText.contains(url))
+        XCTAssertTrue(result.entities.contains { $0.type == "url" && $0.value == url })
     }
 
     func test_decode_extractsJSONObjectFromPreamble() throws {

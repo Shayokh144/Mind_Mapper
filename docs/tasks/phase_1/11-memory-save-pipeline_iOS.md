@@ -48,4 +48,6 @@ The atomic GRDB write transaction (step 4) is critical — if writing the memory
 
 **Wiring:** `AppContainer.makeSaveMemoryUseCase()` injects repos + `MemoryExtractor` + `LLMClient.shared`. Chat (task 14) calls `execute(text:sessionId:userId:)` after STORE intent.
 
+**As shipped:** After extraction, `MemoryLinkPreserver` copies any URL or local file path from the raw note into `clean_text` and adds a `url` entity. The extractor prompt also tells the model to keep links verbatim. This is what recall uses — so a shop URL is still there even if the model paraphrased the sentence.
+
 **Follow-on (task 19d):** Local reminders — extractor returns `should_set_notification` + optional title/description/datetime/recurrence (`null` if unclear); Confirm UX before schedule — [19d-local-reminders-notifications_iOS.md](19d-local-reminders-notifications_iOS.md). Do not auto-schedule from extract alone.

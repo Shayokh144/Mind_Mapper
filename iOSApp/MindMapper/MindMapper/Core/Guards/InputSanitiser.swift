@@ -5,8 +5,9 @@ enum SanitiseResult: Equatable, Sendable {
     case blocked(String)
 }
 
-/// Layer 1 input guard — length, code, URLs/paths, then injection strip.
+/// Layer 1 input guard — length, code, then injection strip.
 /// Always run before any LLM call (scope guard / intent / chat).
+/// Links and local file paths in personal notes/plans are allowed.
 struct InputSanitiser {
 
     static let maxCharacters = 500
@@ -18,10 +19,6 @@ struct InputSanitiser {
 
         if containsCodeSignal(raw) {
             return .blocked(L10n.Guard.codeBlocked)
-        }
-
-        if containsURLOrPath(raw) {
-            return .blocked(L10n.Guard.notesOnly)
         }
 
         let cleaned = stripInjectionPhrases(raw)
@@ -36,13 +33,6 @@ struct InputSanitiser {
         let lower = raw.lowercased()
         let signals = [
             "```",
-            "func ",
-            "def ",
-            "class ",
-            "import ",
-            "  return ",
-            "select ",
-            "insert ",
             "<?php",
             "public void",
             "println(",
@@ -53,11 +43,6 @@ struct InputSanitiser {
             "code for me",
         ]
         return signals.contains { lower.contains($0) }
-    }
-
-    private static func containsURLOrPath(_ raw: String) -> Bool {
-        let pattern = #"https?://|www\.|/Users/|C:\\|file://"#
-        return raw.range(of: pattern, options: .regularExpression) != nil
     }
 
     private static func stripInjectionPhrases(_ raw: String) -> String {

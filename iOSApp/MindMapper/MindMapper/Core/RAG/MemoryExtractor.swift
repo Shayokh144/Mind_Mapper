@@ -147,7 +147,7 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
         {
           "clean_text": "normalised fact in standalone form",
           "entities": [
-            { "type": "person|category|topic_id|product|location", "value": "the value" }
+            { "type": "person|category|topic_id|product|location|url", "value": "the value" }
           ],
           "supersedes_hint": "word or phrase suggesting this replaces an older decision, or null",
           "should_set_notification": true,
@@ -159,7 +159,9 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
 
         Rules:
         - clean_text must be a complete standalone fact (no pronouns like "it" or "there")
-        - Extract ALL meaningful entities (typically 1–5)
+        - If the user included a URL or local file path, copy it into clean_text exactly. \
+          Never drop, shorten, or paraphrase a link as "a website" or "an online store".
+        - Extract ALL meaningful entities (typically 1–5). Use type "url" for links.
         - topic_id should be a snake_case stable identifier (e.g. "gift_wife_anniversary")
         - supersedes_hint: look for words like "instead", "actually", "changed my mind", "no longer"
         - should_set_notification: true when the user asks to be reminded OR the fact is an
@@ -188,7 +190,7 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
             temperature: 0
         )
 
-        return try Self.decode(json)
+        return try Self.decode(json).preservingLinks(from: rawText)
     }
 
     static func decode(_ raw: String) throws -> ExtractionResult {

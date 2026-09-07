@@ -46,10 +46,40 @@ final class InputSanitiserTests: XCTestCase {
         XCTAssertFalse(cleaned.lowercased().contains("ignore all previous"))
     }
 
-    func test_process_blocksURL() {
-        let result = InputSanitiser.process("See https://example.com for details")
-        guard case .blocked = result else {
-            return XCTFail("Expected URL to be blocked")
+    func test_process_allowsHTTPURLInPersonalPlan() {
+        let result = InputSanitiser.process(
+            "Need to visit this shop for a sharee: https://www.facebook.com/share/r/abc"
+        )
+        guard case .allowed(let cleaned) = result else {
+            return XCTFail("Expected allowed for a plan that includes a URL")
+        }
+        XCTAssertTrue(cleaned.contains("https://www.facebook.com"))
+    }
+
+    func test_process_allowsLocalFilePathInNote() {
+        let result = InputSanitiser.process(
+            "Visa PDF is at /Users/me/Documents/visa.pdf"
+        )
+        guard case .allowed(let cleaned) = result else {
+            return XCTFail("Expected allowed for a note with a local file path")
+        }
+        XCTAssertTrue(cleaned.contains("/Users/me/Documents/visa.pdf"))
+    }
+
+    func test_process_allowsFileURLInNote() {
+        let result = InputSanitiser.process("Receipt is at file://tmp/notes.txt")
+        guard case .allowed(let cleaned) = result else {
+            return XCTFail("Expected allowed for a file:// path in a note")
+        }
+        XCTAssertTrue(cleaned.contains("file://tmp/notes.txt"))
+    }
+
+    func test_process_allowsProjectNoteWithClassWord() {
+        let result = InputSanitiser.process(
+            "Add a class for reminders on the project next week"
+        )
+        guard case .allowed = result else {
+            return XCTFail("Expected project planning notes to pass sanitiser")
         }
     }
 }

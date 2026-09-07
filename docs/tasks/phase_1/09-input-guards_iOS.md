@@ -49,6 +49,8 @@ The scope guard LLM call (layer 2) must run AFTER sanitisation (layer 1) — nev
 
 **Wiring:** `AppContainer` exposes `scopeGuard` + `rateLimiter`. Chat ViewModel (task 18 / send pipeline) should call in order: `rateLimiter.check()` → `InputSanitiser.process` → `scopeGuard.check` → `recordAllowed` / `recordBlocked`.
 
+**As shipped:** Links (`http(s)` / `www.`) and local file paths (`/Users/`, `C:\`, `file://`) in personal notes and plans are allowed. `ScopeGuard.check` takes the same short rolling tail as intent. Trip plans, project plans, errands, and plan-research questions are in scope. Recalling those notes — including a stored shop URL, and a retry like “Try again and check if you can find the link” — is in scope. Asking the assistant to write/debug code, or to fetch live web pages the user did not save, is still out of scope. Pure trivia unrelated to a plan is still blocked. The sanitiser only blocks obvious code help (` ``` `, “debug this”, “write code”), not English words like “class” or “import” in a project note.
+
 **Follow-on (task 19c):** Keep the **500** character per-message cap (`InputSanitiser.maxCharacters`). Add a separate **session message count** cap (`ChatLimits.maxMessagesPerSession`) — not a sanitiser concern; enforce in `ChatViewModel` before save. See [19c-chat-rolling-transcript_iOS.md](19c-chat-rolling-transcript_iOS.md).
 
 `RateLimiter` is `nonisolated` (opts out of default `MainActor` isolation) and lock-guarded so unit tests can deallocate it safely.

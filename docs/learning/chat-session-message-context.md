@@ -10,7 +10,7 @@ How a **single chat session** works in Mind Mapper — what the UI remembers vs 
 
 ## As shipped (task 19c)
 
-ChatGPT-style **rolling transcript**: last **12** messages (`ChatLimits.rollingContextMessageCount`) go into STORE extract/ack, CHAT, intent classify (tail of 4), and QUERY recent-chat. Hard cap **40** messages per session (block send when full). Per-message **500** characters unchanged. UI shows `SessionMessageQuotaBar` above the input (green → red as the chat fills).
+ChatGPT-style **rolling transcript**: last **12** messages (`ChatLimits.rollingContextMessageCount`) go into STORE extract/ack, CHAT, intent classify (tail of 4), scope guard (same tail of 4), and QUERY recent-chat. Hard cap **40** messages per session (block send when full). Per-message **500** characters unchanged. UI shows `SessionMessageQuotaBar` above the input (green → red as the chat fills).
 
 ---
 
@@ -24,7 +24,7 @@ ChatGPT-style **rolling transcript**: last **12** messages (`ChatLimits.rollingC
 ```
 
 **For the 2nd STORE call: yes — message 1 (and its ack) are included in the rolling `conversationContext`.**  
-Extraction is instructed to resolve pronouns from prior turns and still emit **one** standalone `clean_text` for the **new** fact only.
+Extraction is instructed to resolve pronouns from prior turns and still emit **one** standalone `clean_text` for the **new** fact only. URLs and file paths from that note are copied into `clean_text` even if the model paraphrases the rest.
 
 | Layer | After message 1 | When you send message 2 |
 |---|---|---|
@@ -101,7 +101,7 @@ The list in `ChatView` **renders** `viewModel.messages`. On send, `ChatViewModel
 
 1. Guard session message cap (`ChatLimits.isAtMessageLimit`).
 2. Save user message → append bubble.
-3. Scope → classify (with short rolling tail) → `route` with rolling context for STORE/CHAT; QUERY/MIXED load recent messages inside RAG.
+3. Scope (short rolling tail) → classify (same tail) → `route` with rolling context for STORE/CHAT; QUERY/MIXED load recent messages inside RAG.
 
 `route` builds `conversationContext` with `rollingLLMContext(limit:excludingCurrentText:)` before calling use cases / CHAT complete.
 
@@ -138,7 +138,7 @@ So on message 2:
 
 ### QUERY / MIXED
 
-1. **Retrieved memories** (any session, via vectors/entities).
+1. **Retrieved memories** (any session, via vectors/entities). Follow-ups like “try again” / “find the link” search using the last user turns plus the current sentence.
 2. **Last 12 messages** of the **current** session (`ChatLimits.rollingContextMessageCount`).
 
 ### CHAT

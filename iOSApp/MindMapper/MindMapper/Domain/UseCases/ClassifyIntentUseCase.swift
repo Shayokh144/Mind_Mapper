@@ -27,16 +27,34 @@ nonisolated final class ClassifyIntentUseCase: ClassifyIntentUseCaseProtocol, @u
 
         let systemPrompt = """
             Classify this personal memory app message. Reply with exactly one word.
-            Prior turns (if any) are only for resolving follow-ups like "what about that?".
+            Prior turns (if any) resolve follow-ups like "what about that?" \
+            or "try again and find the link". Treat those as QUERY when the \
+            thread was recalling stored notes. Treat new to-dos as STORE in a \
+            planning thread. Treat plan-research questions (timing, weather, \
+            packing, budget destinations, gift ideas, project next steps) as MIXED.
 
-            STORE — user is sharing a fact, decision, or personal note
-            ("I put my passport in the drawer", "We decided on Bali", "I keep my keys on the shelf")
+            STORE — sharing a fact, decision, note, trip or project plan, to-do, or file path
+            ("I put my passport in the drawer", "We decided on Bali", \
+            "Need to visit the outlet for a dress", \
+            "We decided the project ships in October", \
+            "Also this shop for a sharee: https://example.com/shop")
 
-            QUERY — user is asking about something previously stored
-            ("Where is my passport?", "What did we decide about the trip?", "Let me know about the trip details")
+            QUERY — asking only about something previously stored. Do not use MIXED \
+            just because the question mentions a trip or project.
+            ("Where is my passport?", "What did we decide about the trip?", \
+            "What do I need to do in Bangladesh?", \
+            "What things I planned to do when I visit Bangladesh next year", \
+            "What did we decide about the project deadline?", \
+            "Do you know the link of that facebook page?", \
+            "Try again and check if you can find the link")
 
-            MIXED — user asks something needing both stored memory AND general knowledge
-            ("What dress ideas did we discuss, and can you suggest more options?")
+            MIXED — user asks for stored memory AND/OR new suggestions or general knowledge
+            ("What dress ideas did we discuss, and can you suggest more options?", \
+            "What's the best time to visit Bangladesh?", \
+            "What should I pack for the trip?", \
+            "What's a sensible order for the remaining project tasks?", \
+            "Suggest me some good birthday gift", \
+            "Which ASEAN country is good for a budget friendly tour?")
 
             CHAT — casual talk, no fact to store or find
             ("Thanks!", "That's helpful", "Good morning")

@@ -81,6 +81,105 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(saveMemory.lastConversationContext?.count, 0)
     }
 
+    func test_sendMessage_planWithShopURL_isNotSanitiserBlocked() async {
+        classify.intent = .store
+        saveMemory.result = SaveMemoryResult(
+            ackText: "Noted the Dhaka shopping stops.",
+            memoryId: "mem-plan",
+            reminderProposal: nil
+        )
+
+        await sut.sendMessage(
+            """
+            Need to visit vougue by prince outlet for Moushumy’s dress
+
+            Also need to visit this online store for Sharee : https://www.facebook.com/share/r/1drnm7bd4K/?mibextid=wwXIfr
+            """
+        )
+
+        XCTAssertEqual(scopeGuard.checkCallCount, 1)
+        XCTAssertEqual(classify.executeCallCount, 1)
+        XCTAssertEqual(saveMemory.executeCallCount, 1)
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertEqual(sut.messages.first?.role, "user")
+        XCTAssertEqual(rateLimiter.recordBlockedCallCount, 0)
+        XCTAssertEqual(rateLimiter.recordAllowedCallCount, 1)
+    }
+
+    func test_sendMessage_filePathNote_isNotSanitiserBlocked() async {
+        classify.intent = .store
+        saveMemory.result = SaveMemoryResult(
+            ackText: "Noted the visa file location.",
+            memoryId: "mem-visa",
+            reminderProposal: nil
+        )
+
+        await sut.sendMessage("Visa PDF is at /Users/me/Documents/visa.pdf")
+
+        XCTAssertEqual(scopeGuard.checkCallCount, 1)
+        XCTAssertEqual(saveMemory.executeCallCount, 1)
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertEqual(rateLimiter.recordBlockedCallCount, 0)
+    }
+
+    func test_sendMessage_planResearchQuestion_reachesMixedQuery() async {
+        classify.intent = .mixed
+
+        await sut.sendMessage("What is the best time to visit Bangladesh?")
+
+        XCTAssertEqual(scopeGuard.checkCallCount, 1)
+        XCTAssertEqual(mixedQuery.executeCallCount, 1)
+        XCTAssertEqual(queryMemory.executeCallCount, 0)
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertEqual(rateLimiter.recordBlockedCallCount, 0)
+    }
+
+    func test_sendMessage_projectPlan_isNotBlocked() async {
+        classify.intent = .store
+        saveMemory.result = SaveMemoryResult(
+            ackText: "Noted the project ship date.",
+            memoryId: "mem-project",
+            reminderProposal: nil
+        )
+
+        await sut.sendMessage("We decided the project ships in October")
+
+        XCTAssertEqual(scopeGuard.checkCallCount, 1)
+        XCTAssertEqual(saveMemory.executeCallCount, 1)
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertEqual(rateLimiter.recordBlockedCallCount, 0)
+    }
+
+    func test_sendMessage_projectRecall_reachesQueryOrMixed() async {
+        classify.intent = .query
+        queryMemory.result = RAGAnswer(
+            text: "You decided the project ships in October.",
+            representedSessionIds: ["s1"]
+        )
+
+        await sut.sendMessage("What did we decide about the project deadline?")
+
+        XCTAssertEqual(scopeGuard.checkCallCount, 1)
+        XCTAssertEqual(queryMemory.executeCallCount, 1)
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertEqual(rateLimiter.recordBlockedCallCount, 0)
+    }
+
+    func test_sendMessage_tryAgainFindTheLink_reachesQuery() async {
+        classify.intent = .query
+        queryMemory.result = RAGAnswer(
+            text: "https://www.facebook.com/share/r/1drnm7bd4K/?mibextid=wwXIfr",
+            representedSessionIds: ["s1"]
+        )
+
+        await sut.sendMessage("Try again and check if you can find the link")
+
+        XCTAssertEqual(scopeGuard.checkCallCount, 1)
+        XCTAssertEqual(queryMemory.executeCallCount, 1)
+        XCTAssertEqual(rateLimiter.recordBlockedCallCount, 0)
+        XCTAssertNil(sut.errorMessage)
+    }
+
     func test_sendMessage_storeWithHistory_passesRollingContext() async throws {
         classify.intent = .store
         messages.messages = [
@@ -97,6 +196,7 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(context[0].content, "I kept my passport in the 3rd drawer")
         XCTAssertEqual(context[1].content, "Got it.")
         XCTAssertEqual(classify.lastConversationContext?.count, 2)
+        XCTAssertEqual(scopeGuard.lastConversationContext?.count, 2)
     }
 
     func test_sendMessage_chatWithHistory_includesPriorTurnsInLLMPayload() async throws {
@@ -172,6 +272,18 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(sut.lastAnswerSessionCount, 2)
         XCTAssertEqual(sut.messages.last?.content, mixedQuery.result.text)
         XCTAssertFalse(sut.isLoading)
+    }
+
+    func test_sendMessage_birthdayGiftSuggestion_reachesMixedQuery() async {
+        classify.intent = .mixed
+
+        await sut.sendMessage("Suggests me some good birthday gift")
+
+        XCTAssertEqual(scopeGuard.checkCallCount, 1)
+        XCTAssertEqual(mixedQuery.executeCallCount, 1)
+        XCTAssertEqual(queryMemory.executeCallCount, 0)
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertEqual(rateLimiter.recordBlockedCallCount, 0)
     }
 
     func test_sendMessage_scopeBlocked_showsWarningBubbleAndSkipsUseCases() async {

@@ -199,6 +199,39 @@ final class SaveMemoryUseCaseTests: XCTestCase {
         XCTAssertFalse(result.memoryId.isEmpty)
     }
 
+    func test_execute_keepsURLInCleanTextWhenExtractorDropsIt() async throws {
+        let url = "https://www.facebook.com/share/r/1drnm7bd4K/?mibextid=wwXIfr"
+        let extraction = ExtractionResult(
+            cleanText: "User plans to visit a Facebook online store for a Sharee",
+            entities: [.init(type: "product", value: "Sharee")],
+            supersedesHint: nil
+        )
+        mockLLM.completeResult = "Got it — noted the Sharee store."
+        mockLLM.embedResult = Self.makeEmbedding(seed: 5)
+
+        let sut = SaveMemoryUseCase(
+            memoryRepository: memoryRepository,
+            vectorRepository: vectorRepository,
+            memoryExtractor: MockMemoryExtractor(result: extraction),
+            llmClient: mockLLM
+        )
+
+        _ = try await sut.execute(
+            text: "Need to visit this online store for Sharee : \(url)",
+            sessionId: session.id,
+            userId: user.id
+        )
+
+        let memories = try await memoryRepository.fetchAll(for: user.id)
+        XCTAssertEqual(memories.count, 1)
+        XCTAssertTrue(memories[0].cleanText.contains(url))
+        XCTAssertTrue(memories[0].rawText.contains(url))
+        XCTAssertEqual(mockLLM.lastEmbedText, memories[0].cleanText)
+
+        let entities = try await memoryRepository.fetchEntities(for: memories[0].id)
+        XCTAssertTrue(entities.contains { $0.entityType == "url" && $0.entityValue == url.lowercased() })
+    }
+
     private static func makeEmbedding(seed: Int) -> [Float] {
         (0..<1_536).map { index in
             Float((index + seed) % 97) / 97.0

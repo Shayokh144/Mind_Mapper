@@ -1339,6 +1339,8 @@ class RateLimiter: ObservableObject {
 - Paste 600 characters → blocked with character limit message
 - Type injection phrase "ignore all previous instructions" → sanitised, then scope-blocked
 
+**As shipped:** `http(s)` / `www.` URLs and local file paths in personal notes and trip/project plans pass the sanitiser. Scope + intent treat plans, errands, remember-this-link, project milestones, and plan-research questions as in-scope. Recalling a stored URL and retrying that recall (“Try again and check if you can find the link”) stay in scope — that is searching notes, not browsing the live web. Research questions route MIXED. Recalling stored plan/project notes is not blocked. ScopeGuard receives the same 4-turn rolling tail as intent.
+
 ---
 
 ## Phase 5 — Intent Classification
@@ -1411,6 +1413,8 @@ struct IntentClassifier {
 - "Where is my blue T-shirt?" → `QUERY`
 - "What gift ideas did we discuss, and suggest some more?" → `MIXED`
 - "Thanks!" → `CHAT`
+
+**As shipped:** Plans and to-dos (trips, projects, shop URLs / file paths to remember) are STORE. Plan-research and suggestion requests (“best time to visit …”, “Suggest me some good birthday gift”, “Which ASEAN country is good for a budget tour?”) are MIXED. Recalling stored plans (“What things I planned…”) is QUERY. Recalling a stored shop URL or retrying that recall is QUERY. MIXED asks only the clarifying questions that request needs. `ClassifyIntentUseCase` lives in Domain, not `Core/LLM/IntentClassifier.swift`.
 
 ---
 
@@ -1674,6 +1678,8 @@ struct MemorySaveService {
 - Check SQLite: memory_entities has rows for category="clothing", location="3rd drawer"
 - Check SQLite: vector row exists with a 1536-float blob
 - App shows a warm acknowledgement in chat
+
+**As shipped:** `SaveMemoryUseCase` + `MemoryExtractor`. URLs and local file paths from the raw note are copied into `clean_text` (and tagged `url`) after extraction, so a shop link is still there if the model paraphrased the sentence.
 
 ---
 
@@ -2037,7 +2043,9 @@ RAG vector search passes `includeSuperseded: true` so outdated rows can appear f
 **As shipped** (`Core/RAG/RAGAnswerService.swift` + `Domain/UseCases/QueryMemoryUseCase.swift`):
 
 - DI: `RAGRetriever` + `LLMClientProtocol` + `DatabaseManager` (via `AppContainer.makeRAGAnswerService()` / `makeQueryMemoryUseCase()`).
-- Chain: `retrieve` → `filterConfident` → empty? graceful no-memory (`tier: .mini`, max 150) → else `resolveTemporalOrder` → format memories as `[1] [Mar 3] …` → last 4 session messages → `complete(tier: .mini, maxTokens: 400, temperature: 0.4)`.
+- Chain: `retrieve` → `filterConfident` → empty? graceful no-memory (`tier: .mini`, max 150) → else `resolveTemporalOrder` → format memories as `[1] [Mar 3] …` → last 12 session messages → `complete(tier: .mini, maxTokens: 280, temperature: 0.2)`.
+- Retrieval splices URLs/file paths from `raw_text` into the chunk when `clean_text` dropped them. Stage 4 copies stored URLs into the answer.
+- Follow-ups (“try again”, “find the link”) expand the retrieval query with the last user turns.
 - `representedSessionIds` from confident chunks drives the “Found across N conversations” badge (Chat UI task 18).
 
 ```swift
@@ -2396,7 +2404,7 @@ struct SessionListView: View {
 >
 > **As shipped (task 19b):** While a reply is in flight, the input field is disabled and send becomes **stop**. `stopGenerating()` cancels/ignores the pipeline task so a late LLM result is not appended; user can edit the incomplete turn and resend. See `docs/tasks/phase_1/19b-chat-stop-generation_iOS.md`.
 >
-> **As shipped (task 19c):** `ChatLimits` (500 chars/message, max **40** messages/session, rolling **12** for LLM). STORE/CHAT/intent get rolling context; QUERY uses last 12. `SessionMessageQuotaBar` above the input (green → red). Session-full blocks send. See `docs/tasks/phase_1/19c-chat-rolling-transcript_iOS.md`.
+> **As shipped (task 19c):** `ChatLimits` (500 chars/message, max **40** messages/session, rolling **12** for LLM). STORE/CHAT/intent/scope get rolling context; QUERY uses last 12. `SessionMessageQuotaBar` above the input (green → red). Session-full blocks send. See `docs/tasks/phase_1/19c-chat-rolling-transcript_iOS.md`.
 
 ```swift
 // Features/Chat/ChatView.swift

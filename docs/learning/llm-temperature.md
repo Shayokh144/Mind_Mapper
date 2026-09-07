@@ -85,7 +85,7 @@ Rough map of shipped call sites (values can drift; check the file if unsure):
 |---|---|---|
 | Intent / scope / JSON extract | `0` | Must match a schema or enum |
 | Session summary bullets | `0.3` | Structured prose |
-| RAG answer / merge | `0.4–0.5` | Helpful wording, stay on retrieved facts |
+| RAG answer / merge | `0.2` | Grounded list of stored facts; no extra sightseeing |
 | Mixed general-knowledge leg | `~0.6` | A bit more suggestion variety |
 | Casual CHAT / “Got it” ack | `0.7` | Friendly tone |
 

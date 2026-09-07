@@ -36,7 +36,12 @@ nonisolated struct RAGAnswerService: RAGAnswerServiceProtocol, @unchecked Sendab
         sessionId: String,
         userId: String
     ) async throws -> RAGAnswer {
-        let raw = try await retriever.retrieve(question: question, userId: userId)
+        let recentMessages = try await loadRecentMessages(sessionId: sessionId)
+        let searchQuery = Self.retrievalQuery(
+            question: question,
+            recentMessages: recentMessages
+        )
+        let raw = try await retriever.retrieve(question: searchQuery, userId: userId)
         let confident = RAGRetriever.filterConfident(raw)
         let sessionIds = RetrievedChunk.representedSessionIds(in: confident)
 
@@ -46,7 +51,6 @@ nonisolated struct RAGAnswerService: RAGAnswerServiceProtocol, @unchecked Sendab
         }
 
         let resolved = RAGRetriever.resolveTemporalOrder(confident)
-        let recentMessages = try await loadRecentMessages(sessionId: sessionId)
         let text = try await synthesise(
             question: question,
             memories: resolved,
@@ -123,8 +127,8 @@ nonisolated struct RAGAnswerService: RAGAnswerServiceProtocol, @unchecked Sendab
         let reply = try await llmClient.complete(
             tier: .mini,
             messages: messages,
-            maxTokens: 400,
-            temperature: 0.4
+            maxTokens: 280,
+            temperature: 0.2
         )
         let trimmed = reply.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw AppError.llmResponseInvalid }
@@ -133,7 +137,19 @@ nonisolated struct RAGAnswerService: RAGAnswerServiceProtocol, @unchecked Sendab
 
     static let systemPrompt = """
     You are a personal memory assistant. Answer ONLY from the provided memories.
-    Do not guess or add information not in the memories.
+    Do not guess. Do not add sightseeing, tips, or suggestions the user did not store.
+    Keep names, places, and URLs exactly as they appear in the memories.
+    If a memory includes a URL or file path, copy that full URL into the answer.
+    Never replace a stored link with "the Facebook page" or "an online store".
+    If the user asks for a link, quote the stored URL. Only say it was not stored \
+    if no URL appears in the memories. A follow-up like "try again" still uses \
+    those same memories — do not refuse.
+
+    When the user asks what they planned, decided, or need to do:
+    - Start with one short line such as "Based on your current plan:"
+    - Then a bullet list, one stored item per line
+    - Put any stored URL on the same bullet as that item
+    - Do not add extra places or ideas
 
     If multiple memories show the same topic evolving over time:
     - Acknowledge the history ("You originally thought X...")
@@ -150,6 +166,21 @@ nonisolated struct RAGAnswerService: RAGAnswerServiceProtocol, @unchecked Sendab
             let date = memoryDateFormatter.string(from: chunk.createdAt)
             return "[\(index + 1)] [\(date)] \(chunk.cleanText)"
         }.joined(separator: "\n")
+    }
+
+    /// Follow-ups like "try again" / "that link" search poorly on their own.
+    /// Fold in the last user turns so retrieval still hits the stored note.
+    static func retrievalQuery(question: String, recentMessages: [Message]) -> String {
+        guard LocalMessageClassifier.isFollowUpRecall(question) else { return question }
+        let priorUser = ChatLimits.llmMessagesExcludingTrailingUser(
+            from: recentMessages,
+            currentText: question
+        )
+        .filter { $0.role == "user" }
+        .suffix(2)
+        .map(\.content)
+        guard !priorUser.isEmpty else { return question }
+        return (Array(priorUser) + [question]).joined(separator: "\n")
     }
 
     private static let memoryDateFormatter: DateFormatter = {

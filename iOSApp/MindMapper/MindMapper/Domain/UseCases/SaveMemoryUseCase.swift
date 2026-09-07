@@ -37,7 +37,7 @@ nonisolated final class SaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unchecked
         let extraction = try await memoryExtractor.extract(
             from: text,
             conversationContext: conversationContext
-        )
+        ).preservingLinks(from: text)
         let supersedesId = try await resolveSupersedesId(hint: extraction.supersedesHint)
         let embedding = try await llmClient.embed(text: extraction.cleanText, tier: .embed)
 
@@ -91,9 +91,10 @@ nonisolated final class SaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unchecked
             LLMMessage(
                 role: "system",
                 content: """
-                You are a warm personal memory assistant. Acknowledge what the user \
-                just told you in one friendly sentence. Use prior turns only for \
-                coherence (e.g. what "it" refers to). Do not add information they didn't say.
+                You are a personal memory assistant. Acknowledge what the user \
+                just told you in one short sentence. Use prior turns only for \
+                coherence (e.g. what "it" refers to). Do not add suggestions, \
+                extra places, or information they didn't say.
                 """
             ),
         ]
@@ -104,7 +105,7 @@ nonisolated final class SaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unchecked
             tier: .mini,
             messages: messages,
             maxTokens: 60,
-            temperature: 0.7
+            temperature: 0.3
         )
         let trimmed = reply.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw AppError.llmResponseInvalid }

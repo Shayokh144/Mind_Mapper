@@ -24,9 +24,15 @@ final class MixedQueryServiceTests: XCTestCase {
         XCTAssertEqual(rag.answerCallCount, 1)
         XCTAssertEqual(llm.completeCallCount, 2)
         XCTAssertEqual(llm.lastTier, .mini)
-        XCTAssertEqual(llm.lastMaxTokens, 400)
+        XCTAssertEqual(llm.lastMaxTokens, 280)
         XCTAssertEqual(answer.text, "You liked the blue dress; navy would also work.")
         XCTAssertEqual(answer.representedSessionIds, ["s1", "s2"])
+
+        let mergePrompt = llm.lastMessages?.last?.content ?? ""
+        XCTAssertTrue(mergePrompt.contains("Ask short clarifying questions only"))
+        XCTAssertTrue(mergePrompt.contains("Prior turns:"))
+        XCTAssertTrue(mergePrompt.contains("budget-friendly ASEAN"))
+        XCTAssertTrue(mergePrompt.contains("Copy full URLs"))
 
         // First complete was general knowledge at .full — verify via call order using queue empty.
         XCTAssertTrue(llm.completeResultsQueue.isEmpty)

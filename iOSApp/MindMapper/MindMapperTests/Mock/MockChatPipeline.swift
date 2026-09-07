@@ -64,13 +64,16 @@ nonisolated final class MockMixedQueryUseCase: MixedQueryUseCaseProtocol, @unche
     )
     var error: Error?
     private(set) var executeCallCount = 0
+    private(set) var lastConversationContext: [LLMMessage]?
 
     func execute(
         question: String,
         sessionId: String,
-        userId: String
+        userId: String,
+        conversationContext: [LLMMessage]
     ) async throws -> RAGAnswer {
         executeCallCount += 1
+        lastConversationContext = conversationContext
         if let error { throw error }
         return result
     }
@@ -106,9 +109,16 @@ nonisolated final class MockScopeGuard: ScopeGuardProtocol, @unchecked Sendable 
     /// When set, `check` sleeps before returning (keeps ChatViewModel.isLoading true).
     var checkDelayNanoseconds: UInt64 = 0
     private(set) var checkCallCount = 0
+    private(set) var lastInput: String?
+    private(set) var lastConversationContext: [LLMMessage]?
 
-    func check(_ input: String) async throws -> ScopeResult {
+    func check(
+        _ input: String,
+        conversationContext: [LLMMessage]
+    ) async throws -> ScopeResult {
         checkCallCount += 1
+        lastInput = input
+        lastConversationContext = conversationContext
         if checkDelayNanoseconds > 0 {
             try await Task.sleep(nanoseconds: checkDelayNanoseconds)
         }

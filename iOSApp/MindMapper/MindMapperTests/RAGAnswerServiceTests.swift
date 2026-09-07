@@ -65,6 +65,43 @@ final class RAGAnswerServiceTests: XCTestCase {
         XCTAssertTrue(formatted.contains("Mar"))
     }
 
+    func test_systemPrompt_requiresCopyingStoredURLs() {
+        XCTAssertTrue(RAGAnswerService.systemPrompt.contains("copy that full URL"))
+        XCTAssertTrue(RAGAnswerService.systemPrompt.contains("Only say it was not stored"))
+    }
+
+    func test_retrievalQuery_followUpIncludesPriorUserTurns() {
+        let sessionId = "s-follow"
+        let prior = Message(
+            sessionId: sessionId,
+            role: "user",
+            content: "Do you know the link of that facebook page?"
+        )
+        let retry = Message(
+            sessionId: sessionId,
+            role: "user",
+            content: "Try again and check if you can find the link"
+        )
+        let expanded = RAGAnswerService.retrievalQuery(
+            question: retry.content,
+            recentMessages: [prior, retry]
+        )
+        XCTAssertTrue(expanded.contains("facebook page"))
+        XCTAssertTrue(expanded.contains("Try again"))
+    }
+
+    func test_retrievalQuery_standaloneQuestionUnchanged() {
+        XCTAssertEqual(
+            RAGAnswerService.retrievalQuery(
+                question: "Where is my passport?",
+                recentMessages: [
+                    Message(sessionId: "s1", role: "user", content: "We go to Bali in June"),
+                ]
+            ),
+            "Where is my passport?"
+        )
+    }
+
     // MARK: - Empty / no memory
 
     func test_answer_noMemories_returnsGracefulReply() async throws {
@@ -168,8 +205,8 @@ final class RAGAnswerServiceTests: XCTestCase {
         let prompt = mockLLM.lastMessages ?? []
         let joined = prompt.map(\.content).joined(separator: "\n")
         XCTAssertEqual(mockLLM.lastTier, .mini)
-        XCTAssertEqual(mockLLM.lastMaxTokens, 400)
-        XCTAssertEqual(mockLLM.lastTemperature, 0.4)
+        XCTAssertEqual(mockLLM.lastMaxTokens, 280)
+        XCTAssertEqual(mockLLM.lastTemperature, 0.2)
         XCTAssertTrue(joined.contains("[1]"))
         XCTAssertTrue(joined.contains("[2]"))
         XCTAssertTrue(joined.contains("[3]"))
@@ -234,6 +271,81 @@ final class RAGAnswerServiceTests: XCTestCase {
         XCTAssertTrue(joined.contains("OUTDATED"))
         XCTAssertTrue(joined.contains("Passport is in the top drawer"))
         XCTAssertTrue(joined.contains("Passport is in the safe"))
+    }
+
+    func test_answer_restoresURLFromRawTextWhenCleanTextDroppedIt() async throws {
+        let session = try await insertSession(title: "Bangladesh 2027")
+        let url = "https://www.facebook.com/share/r/1drnm7bd4K/?mibextid=wwXIfr"
+        let memory = Memory(
+            sessionId: session.id,
+            userId: user.id,
+            rawText: "Need to visit this online store for Sharee : \(url)",
+            cleanText: "User plans to visit a Facebook online store for a Sharee"
+        )
+        try await insertMemory(memory, entities: [
+            .init(memoryId: memory.id, entityType: "product", entityValue: "sharee"),
+            .init(memoryId: memory.id, entityType: "location", entityValue: "facebook"),
+        ])
+
+        mockLLM.completeResultsQueue = [
+            #"["facebook"]"#,
+            "Visit the Facebook store \(url) for a Sharee.",
+        ]
+        mockLLM.embedResult = makeUnitEmbedding(seed: 8)
+
+        let result = try await makeSUT().answer(
+            question: "Do you know the link of that facebook page?",
+            sessionId: session.id,
+            userId: user.id
+        )
+
+        XCTAssertTrue(result.text.contains(url))
+        let joined = (mockLLM.lastMessages ?? []).map(\.content).joined(separator: "\n")
+        XCTAssertTrue(joined.contains(url))
+        XCTAssertTrue(joined.contains("User plans to visit a Facebook online store for a Sharee"))
+    }
+
+    func test_answer_tryAgainFollowUp_embedsPriorLinkQuestion() async throws {
+        let session = try await insertSession(title: "Bangladesh 2027")
+        let url = "https://www.facebook.com/share/r/1drnm7bd4K/?mibextid=wwXIfr"
+        let memory = Memory(
+            sessionId: session.id,
+            userId: user.id,
+            rawText: "Need to visit this online store for Sharee : \(url)",
+            cleanText: "User plans to visit a Facebook online store for a Sharee"
+        )
+        try await insertMemory(memory, entities: [
+            .init(memoryId: memory.id, entityType: "location", entityValue: "facebook"),
+        ])
+        try await database.dbQueue.write { db in
+            try MessageRecord(from: Message(
+                sessionId: session.id,
+                role: "user",
+                content: "Do you know the link of that facebook page?"
+            )).insert(db)
+            try MessageRecord(from: Message(
+                sessionId: session.id,
+                role: "assistant",
+                content: "Based on your memories, the link for that Facebook page was not stored."
+            )).insert(db)
+        }
+
+        mockLLM.completeResultsQueue = [
+            #"["facebook"]"#,
+            "The stored link is \(url)",
+        ]
+        mockLLM.embedResult = makeUnitEmbedding(seed: 4)
+
+        let result = try await makeSUT().answer(
+            question: "Try again and check if you can find the link",
+            sessionId: session.id,
+            userId: user.id
+        )
+
+        XCTAssertTrue(result.text.contains(url))
+        XCTAssertTrue(mockLLM.lastEmbedText?.contains("facebook page") == true)
+        let joined = (mockLLM.lastMessages ?? []).map(\.content).joined(separator: "\n")
+        XCTAssertTrue(joined.contains(url))
     }
 
     func test_queryMemoryUseCase_delegatesToAnswerService() async throws {

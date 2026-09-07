@@ -397,8 +397,15 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func runPipeline(sanitised: String, generation: Int) async {
+        let classifyContext = rollingLLMContext(
+            limit: ChatLimits.intentContextMessageCount,
+            excludingCurrentText: sanitised
+        )
         do {
-            let scope = try await dependencies.scopeGuard.check(sanitised)
+            let scope = try await dependencies.scopeGuard.check(
+                sanitised,
+                conversationContext: classifyContext
+            )
             guard isPipelineActive(generation) else { return }
             if case .outOfScope(let reason) = scope {
                 dependencies.rateLimiter.recordBlocked()
@@ -416,13 +423,9 @@ final class ChatViewModel: ObservableObject {
         dependencies.rateLimiter.recordAllowed()
 
         do {
-            let intentContext = rollingLLMContext(
-                limit: ChatLimits.intentContextMessageCount,
-                excludingCurrentText: sanitised
-            )
             let intent = try await dependencies.classifyIntentUseCase.execute(
                 sanitised,
-                conversationContext: intentContext
+                conversationContext: classifyContext
             )
             guard isPipelineActive(generation) else { return }
             let reply = try await route(intent: intent, text: sanitised)
@@ -512,7 +515,8 @@ final class ChatViewModel: ObservableObject {
             let answer = try await dependencies.mixedQueryUseCase.execute(
                 question: text,
                 sessionId: sessionId,
-                userId: userId
+                userId: userId,
+                conversationContext: storeContext
             )
             lastAnswerSessionCount = answer.representedSessionIds.count
             return answer.text

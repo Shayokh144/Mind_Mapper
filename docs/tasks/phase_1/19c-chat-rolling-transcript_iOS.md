@@ -135,5 +135,5 @@ Counting: use in-memory `messages` after `loadSession` / appends; optionally re-
 **Already shipped (do not recreate)**
 
 - `ChatView` / `ChatViewModel` send pipeline, stop generation (19b), incomplete-turn retry.
-- `InputSanitiser` 500-char + code/URL/injection guards.
+- `InputSanitiser` 500-char + code/injection guards (links and local file paths in personal notes are allowed).
 - STORE / QUERY / MIXED / CHAT routing; RAG four stages; session close transcript (task 15) for title/summary — separate from per-send rolling context.

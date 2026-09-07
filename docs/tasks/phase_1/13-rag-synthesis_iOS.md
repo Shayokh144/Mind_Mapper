@@ -64,4 +64,7 @@ let sessions = RetrievedChunk.representedSessionIds(in: confident) // badge coun
 - `RAGAnswer` returns `text` + `representedSessionIds` for the Chat badge.
 - RAG vector search uses `includeSuperseded: true` so Stage 3 can annotate outdated rows (save-time supersede lookup still excludes them via default `false`).
 - Stage 4 loads **last 12** session messages as recent chat context (`ChatLimits.rollingContextMessageCount`; task 19c). Same rolling window used for STORE/CHAT.
+- Query-time retrieval splices URLs/file paths from `raw_text` into the chunk when `clean_text` dropped them, so older stored links still appear in answers.
+- Follow-ups (“try again”, “that facebook page”, “find the link”) expand the retrieval query with the last user turns so search is not just the retry sentence.
+- Stage 4 copies stored URLs into the answer; it must not paraphrase a link as "the Facebook page".
 - Tests: `MindMapperTests/RAGAnswerServiceTests.swift`.

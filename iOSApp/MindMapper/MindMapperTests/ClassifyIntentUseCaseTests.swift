@@ -57,6 +57,70 @@ final class ClassifyIntentUseCaseTests: XCTestCase {
         XCTAssertEqual(ClassifyIntentUseCase.parseIntent(""), .chat)
     }
 
+    func test_execute_tripPlanWithURL_isLocalStore() async throws {
+        let intent = try await sut.execute(
+            """
+            Need to visit vougue by prince outlet for Moushumy’s dress
+
+            Also need to visit this online store for Sharee : https://www.facebook.com/share/r/1drnm7bd4K/?mibextid=wwXIfr
+            """
+        )
+        XCTAssertEqual(intent, .store)
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
+    }
+
+    func test_execute_bestTimeToVisit_isLocalMixed() async throws {
+        let intent = try await sut.execute("What is the best time to visit Bangladesh?")
+        XCTAssertEqual(intent, .mixed)
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
+    }
+
+    func test_execute_projectPlan_isLocalStore() async throws {
+        let intent = try await sut.execute("We decided the project ships in October")
+        XCTAssertEqual(intent, .store)
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
+    }
+
+    func test_execute_projectRecall_isLocalQuery() async throws {
+        let intent = try await sut.execute("What did we decide about the project deadline?")
+        XCTAssertEqual(intent, .query)
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
+    }
+
+    func test_execute_whatIPlanned_isLocalQuery() async throws {
+        let intent = try await sut.execute(
+            "What things I planned to do when I will visit Bangladesh next year"
+        )
+        XCTAssertEqual(intent, .query)
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
+    }
+
+    func test_execute_birthdayGiftSuggestion_isLocalMixed() async throws {
+        let intent = try await sut.execute("Suggests me some good birthday gift")
+        XCTAssertEqual(intent, .mixed)
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
+    }
+
+    func test_execute_aseanBudgetTour_isLocalMixed() async throws {
+        let intent = try await sut.execute(
+            "which Asean country good for budget friendly tour?"
+        )
+        XCTAssertEqual(intent, .mixed)
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
+    }
+
+    func test_execute_facebookLinkRecall_isLocalQuery() async throws {
+        let intent = try await sut.execute("Do you know the link of that facebook page?")
+        XCTAssertEqual(intent, .query)
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
+    }
+
+    func test_execute_tryAgainFindTheLink_isLocalQuery() async throws {
+        let intent = try await sut.execute("Try again and check if you can find the link")
+        XCTAssertEqual(intent, .query)
+        XCTAssertEqual(mockLLM.completeCallCount, 0)
+    }
+
     private func assertNanoClassificationCall() {
         XCTAssertEqual(mockLLM.completeCallCount, 1)
         XCTAssertEqual(mockLLM.lastTier, .nano)

@@ -58,5 +58,8 @@ This is the most complex single task in the project. Break it into two sessions:
 - Minimal `AppRouter` in `Core/Navigation/` so `makeChatViewModel(sessionId:router:)` compiles; task 16 expands Root/Tab wiring.
 - `makeChatViewModel` returns `nil` when unauthenticated.
 - Tests: `ChatViewModelTests`, `MixedQueryServiceTests`.
+- QUERY answers list stored facts only (bullet list for “what did I plan”); MIXED merge adds general knowledge only when the user asked for suggestions — not unsolicited sightseeing.
+- Stored URLs are copied into answers; merge must not paraphrase a remembered link.
+- Gift, destination, and other plan-help requests are MIXED. Use stored context when you have it. Ask clarifying questions only for missing facts that would change the answer (gift → who/age/gender; trip → dates/budget/group). A question that already has enough to go on (e.g. budget-friendly ASEAN tour) should get a real answer. Prior chat turns are passed into the merge.
 
 **Follow-on (task 19c):** Rolling transcript into `route` / use cases + session message cap — [19c-chat-rolling-transcript_iOS.md](19c-chat-rolling-transcript_iOS.md). Extend shipped `ChatViewModel`; do not recreate the orchestrator.

@@ -11,7 +11,7 @@ enum ChatLimits {
     /// Prior + current bubbles included in LLM payloads (≈ 6 turns).
     static let rollingContextMessageCount = 12
 
-    /// Shorter tail for intent classification.
+    /// Shorter tail for scope + intent classification.
     static let intentContextMessageCount = 4
 
     /// Need room for this user message **and** the coming assistant reply.
