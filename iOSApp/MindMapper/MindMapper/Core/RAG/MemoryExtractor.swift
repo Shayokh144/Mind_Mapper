@@ -1,19 +1,83 @@
 import Foundation
 
-struct ExtractionResult: Decodable, Equatable, Sendable {
+struct ExtractionResult: Equatable, Sendable {
     let cleanText: String
     let entities: [EntityItem]
     let supersedesHint: String?
+    let shouldSetNotification: Bool
+    let notificationTitle: String?
+    let notificationDescription: String?
+    let notificationDatetime: Date?
+    let notificationRecurrence: ReminderRecurrence?
 
     struct EntityItem: Decodable, Equatable, Sendable {
         let type: String
         let value: String
     }
 
+    init(
+        cleanText: String,
+        entities: [EntityItem],
+        supersedesHint: String?,
+        shouldSetNotification: Bool = false,
+        notificationTitle: String? = nil,
+        notificationDescription: String? = nil,
+        notificationDatetime: Date? = nil,
+        notificationRecurrence: ReminderRecurrence? = nil
+    ) {
+        self.cleanText = cleanText
+        self.entities = entities
+        self.supersedesHint = supersedesHint
+        self.shouldSetNotification = shouldSetNotification
+        self.notificationTitle = notificationTitle
+        self.notificationDescription = notificationDescription
+        self.notificationDatetime = notificationDatetime
+        self.notificationRecurrence = notificationRecurrence
+    }
+
+    var reminderProposal: ReminderProposal? {
+        guard shouldSetNotification else { return nil }
+        return ReminderProposal(
+            shouldSetNotification: true,
+            title: Self.trimmedOrNil(notificationTitle),
+            description: Self.trimmedOrNil(notificationDescription),
+            fireAt: notificationDatetime,
+            recurrence: notificationRecurrence
+        )
+    }
+
+    private static func trimmedOrNil(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     enum CodingKeys: String, CodingKey {
         case cleanText = "clean_text"
         case entities
         case supersedesHint = "supersedes_hint"
+        case shouldSetNotification = "should_set_notification"
+        case notificationTitle = "notification_title"
+        case notificationDescription = "notification_description"
+        case notificationDatetime = "notification_datetime"
+        case notificationRecurrence = "notification_recurrence"
+    }
+}
+
+extension ExtractionResult: Decodable {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        cleanText = try container.decode(String.self, forKey: .cleanText)
+        entities = try container.decodeIfPresent([EntityItem].self, forKey: .entities) ?? []
+        supersedesHint = try container.decodeIfPresent(String.self, forKey: .supersedesHint)
+        shouldSetNotification = try container.decodeIfPresent(Bool.self, forKey: .shouldSetNotification)
+            ?? false
+        notificationTitle = try container.decodeIfPresent(String.self, forKey: .notificationTitle)
+        notificationDescription = try container.decodeIfPresent(String.self, forKey: .notificationDescription)
+        let datetimeRaw = try container.decodeIfPresent(String.self, forKey: .notificationDatetime)
+        notificationDatetime = ReminderDateParser.parse(datetimeRaw)
+        let recurrenceRaw = try container.decodeIfPresent(String.self, forKey: .notificationRecurrence)
+        notificationRecurrence = recurrenceRaw.flatMap(ReminderRecurrence.init(rawValue:))
     }
 }
 
@@ -85,7 +149,12 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
           "entities": [
             { "type": "person|category|topic_id|product|location", "value": "the value" }
           ],
-          "supersedes_hint": "word or phrase suggesting this replaces an older decision, or null"
+          "supersedes_hint": "word or phrase suggesting this replaces an older decision, or null",
+          "should_set_notification": true,
+          "notification_title": "short title or null",
+          "notification_description": "notification body or null",
+          "notification_datetime": "ISO-8601 datetime with offset, or null if time is unclear",
+          "notification_recurrence": "once|daily|weekly|monthly or null"
         }
 
         Rules:
@@ -93,6 +162,16 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
         - Extract ALL meaningful entities (typically 1–5)
         - topic_id should be a snake_case stable identifier (e.g. "gift_wife_anniversary")
         - supersedes_hint: look for words like "instead", "actually", "changed my mind", "no longer"
+        - should_set_notification: true when the user asks to be reminded OR the fact is an
+          actionable future follow-up (medicine, ask HR, deadline, appointment). False for
+          casual chat or facts with no follow-up.
+        - If remindable but the time is unclear (e.g. "I need to ask office HR about leave"),
+          still set should_set_notification true and send null for datetime (and recurrence
+          if unclear). Never invent a time.
+        - Example: "eat medicine tomorrow at 10 PM" → should_set_notification true,
+          notification_title like "Take medicine", datetime filled, recurrence "once".
+        - Example: "ask HR about leave policy" → should_set_notification true, datetime null.
+        - Do NOT assume a reminder should already be scheduled — the app will confirm with the user.
         """
 
         var messages: [LLMMessage] = [
@@ -105,7 +184,7 @@ nonisolated struct MemoryExtractor: MemoryExtractorProtocol, @unchecked Sendable
             tier: .mini,
             messages: messages,
             // Compact JSON; proxy also sets responseMimeType=application/json when temp=0.
-            maxTokens: 512,
+            maxTokens: 768,
             temperature: 0
         )
 

@@ -90,6 +90,10 @@ nonisolated struct MemoryRepository: MemoryRepositoryProtocol {
                     arguments: [memoryId]
                 )
 
+                try ReminderRecord
+                    .filter(Column("memory_id") == memoryId)
+                    .deleteAll(db)
+
                 try MemoryEntityRecord
                     .filter(Column("memory_id") == memoryId)
                     .deleteAll(db)

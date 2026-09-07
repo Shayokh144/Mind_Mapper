@@ -3128,6 +3128,8 @@ Always delete local first, server second. If the server call fails, the user's l
 ## Phase 14 — Notifications & Reminders *(Low Priority — Build After Core)*
 ⏱️ **Estimated time: 4–6 hours (when you're ready)** → **Implementation task: [`19d-local-reminders-notifications_iOS.md`](../tasks/phase_1/19d-local-reminders-notifications_iOS.md)** (local `UNUserNotificationCenter`; LLM `should_set_notification` proposal; Yes/No + validated confirm sheet; Reminders tab + manual +; recurrence once/daily/weekly/monthly). Prefer that task over the older `.shared` / auto-schedule sketches below.
 
+**As shipped (19d):** DI `LocalNotificationService` (no `.shared` in VMs/use cases); `v3_reminders`; structured extraction proposal + Confirm UX; Reminders tab + Settings permission row. Type 2 proactive birthday nags remain out of scope.
+
 > ⚠️ **Do not build this phase until Phases 0–13 are complete and the core app is stable.** This is a polish feature, not a core requirement. Task **19d** may ship earlier once chat STORE is stable — follow 19d’s DI + confirm UX.
 
 **Goal:** Allow users to set reminders tied to specific memories or topics. For example, after saving "I need to buy a gift for my wife's birthday on June 20th", the app can proactively send a reminder notification a few days before.

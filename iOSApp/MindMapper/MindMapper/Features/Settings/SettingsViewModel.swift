@@ -9,21 +9,44 @@ final class SettingsViewModel: ObservableObject {
     @Published var showDeleteAccountWarning = false
     @Published var showDeleteAccountConfirm = false
     @Published var deleteConfirmationText = ""
+    @Published private(set) var notificationStatus: NotificationAuthorizationStatus = .notDetermined
 
     private let authManager: AuthManagerProtocol
     private let deleteAccountUseCase: DeleteAccountUseCaseProtocol
+    private let notificationService: LocalNotificationServiceProtocol
     private let requiredDeletePhrase = "DELETE"
 
     init(
         authManager: AuthManagerProtocol,
-        deleteAccountUseCase: DeleteAccountUseCaseProtocol
+        deleteAccountUseCase: DeleteAccountUseCaseProtocol,
+        notificationService: LocalNotificationServiceProtocol
     ) {
         self.authManager = authManager
         self.deleteAccountUseCase = deleteAccountUseCase
+        self.notificationService = notificationService
     }
 
     var signedInEmail: String? {
         authManager.currentUser?.email
+    }
+
+    var notificationStatusText: String {
+        switch notificationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return L10n.Settings.notificationsAuthorized
+        case .denied:
+            return L10n.Settings.notificationsDenied
+        case .notDetermined:
+            return L10n.Settings.notificationsNotDetermined
+        }
+    }
+
+    var showsOpenSettingsForNotifications: Bool {
+        notificationStatus == .denied
+    }
+
+    func refreshNotificationStatus() async {
+        notificationStatus = await notificationService.authorizationStatus()
     }
 
     var canConfirmAccountDeletion: Bool {

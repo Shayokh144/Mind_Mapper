@@ -71,6 +71,34 @@ struct ChatView: View {
                 await viewModel.closeSession()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .reminderEditorDidFinish)) { notification in
+            let didSave = notification.userInfo?[ReminderEditorFinishUserInfoKey.didSave] as? Bool ?? false
+            viewModel.handleReminderEditorFinished(didSave: didSave)
+        }
+        .confirmationDialog(
+            L10n.Reminders.permissionPrePromptTitle,
+            isPresented: $viewModel.showReminderPermissionPrePrompt,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.Reminders.permissionContinue) {
+                Task { await viewModel.confirmReminderPermissionRequest() }
+            }
+            Button(L10n.Common.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.Reminders.permissionPrePromptMessage)
+        }
+        .confirmationDialog(
+            L10n.Reminders.deniedTitle,
+            isPresented: $viewModel.showNotificationDeniedHelp,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.Settings.openSystemSettings) {
+                openSystemSettings()
+            }
+            Button(L10n.Common.close, role: .cancel) {}
+        } message: {
+            Text(L10n.Reminders.deniedMessage)
+        }
     }
 
     // MARK: - Message list
@@ -131,6 +159,10 @@ struct ChatView: View {
                 retryActions
             }
 
+            if shouldShowReminderOffer(after: message) {
+                reminderOfferActions
+            }
+
             if shouldShowCrossSessionBadge(after: message) {
                 ThemeBadge(
                     text: L10n.Chat.foundAcross(count: viewModel.lastAnswerSessionCount),
@@ -141,6 +173,35 @@ struct ChatView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
+    }
+
+    private func shouldShowReminderOffer(after message: MessageDisplayModel) -> Bool {
+        guard viewModel.pendingReminderOffer != nil,
+              message.isAssistant,
+              message.id == viewModel.messages.last?.id
+        else { return false }
+        return true
+    }
+
+    private var reminderOfferActions: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text(L10n.Reminders.offerPrompt)
+                .captionStyle()
+            HStack(spacing: Spacing.md) {
+                GhostButton(title: L10n.Common.yes) {
+                    Task { await viewModel.acceptReminderOffer() }
+                }
+                GhostButton(title: L10n.Common.no, color: Color.theme.textSecondary) {
+                    viewModel.declineReminderOffer()
+                }
+            }
+        }
+        .padding(.leading, Spacing.xs)
+    }
+
+    private func openSystemSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 
     private func shouldShowRetryActions(after message: MessageDisplayModel) -> Bool {

@@ -59,8 +59,9 @@ final class SaveMemoryUseCaseTests: XCTestCase {
             userId: user.id
         )
 
-        XCTAssertFalse(ack.contains("{"))
-        XCTAssertTrue(ack.lowercased().contains("got it") || ack.lowercased().contains("noted"))
+        XCTAssertFalse(ack.ackText.contains("{"))
+        XCTAssertTrue(ack.ackText.lowercased().contains("got it") || ack.ackText.lowercased().contains("noted"))
+        XCTAssertNil(ack.reminderProposal)
 
         let memories = try await memoryRepository.fetchAll(for: user.id)
         XCTAssertEqual(memories.count, 1)
@@ -162,6 +163,40 @@ final class SaveMemoryUseCaseTests: XCTestCase {
         XCTAssertEqual(extractor.lastRawText, "It is inside a blue colored file.")
         // Ack complete call includes system + context + current.
         XCTAssertEqual(mockLLM.lastMessages?.count, 4)
+    }
+
+    func test_execute_returnsReminderProposal_withoutScheduling() async throws {
+        let fireAt = Date().addingTimeInterval(3_600)
+        let extraction = ExtractionResult(
+            cleanText: "User needs to take medicine at 10 PM",
+            entities: [],
+            supersedesHint: nil,
+            shouldSetNotification: true,
+            notificationTitle: "Take medicine",
+            notificationDescription: "Time to take your medicine",
+            notificationDatetime: fireAt,
+            notificationRecurrence: .once
+        )
+        mockLLM.completeResult = "Got it — I'll remember the medicine."
+        mockLLM.embedResult = Self.makeEmbedding(seed: 4)
+
+        let sut = SaveMemoryUseCase(
+            memoryRepository: memoryRepository,
+            vectorRepository: vectorRepository,
+            memoryExtractor: MockMemoryExtractor(result: extraction),
+            llmClient: mockLLM
+        )
+
+        let result = try await sut.execute(
+            text: "I need to eat medicine tomorrow at 10 PM",
+            sessionId: session.id,
+            userId: user.id
+        )
+
+        XCTAssertEqual(result.reminderProposal?.shouldSetNotification, true)
+        XCTAssertEqual(result.reminderProposal?.title, "Take medicine")
+        XCTAssertEqual(result.reminderProposal?.recurrence, .once)
+        XCTAssertFalse(result.memoryId.isEmpty)
     }
 
     private static func makeEmbedding(seed: Int) -> [Float] {

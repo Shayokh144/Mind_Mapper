@@ -65,13 +65,13 @@ All Swift source lives in the `iOSApp/` folder at the repository root. The Xcode
 iOSApp/
 ├── App/
 │   ├── MindMapperApp.swift          ← @main entry point, DI container init
-│   └── AppDelegate.swift           ← push notification registration only
+│   └── AppDelegate.swift           ← UNUserNotificationCenter delegate wiring
 │
 ├── Core/
 │   ├── Theme/                      ← Color+Theme, Font+Theme, Spacing, Components (ChatBubble, SessionMessageQuotaBar, …)
 │   ├── Chat/                       ← ChatLimits (message/session caps + rolling context helpers)
-│   ├── Notifications/              ← LocalNotificationService (task 19d — UNUserNotificationCenter)
-│   ├── Database/                   ← DatabaseManager, migrations
+│   ├── Notifications/              ← LocalNotificationService, NotificationTapRouter
+│   ├── Database/                   ← DatabaseManager, migrations (v1, v2_session_pin, v3_reminders)
 │   ├── Network/                    ← LLMClient, SupabaseClient wrapper
 │   ├── VectorStore/                ← Cosine similarity over local embedding blobs
 │   ├── RAG/                        ← MemoryExtractor, RAGRetriever, RAGAnswerService, MixedQueryService
@@ -87,6 +87,7 @@ iOSApp/
 │   │   ├── SessionRepositoryProtocol.swift
 │   │   ├── MessageRepositoryProtocol.swift
 │   │   ├── MemoryRepositoryProtocol.swift
+│   │   ├── ReminderRepositoryProtocol.swift
 │   │   └── VectorRepositoryProtocol.swift
 │   └── UseCases/
 │       ├── SaveMemoryUseCase.swift
@@ -96,13 +97,15 @@ iOSApp/
 │       ├── CloseSessionUseCase.swift
 │       ├── DeleteSessionUseCase.swift
 │       ├── DeleteMemoryUseCase.swift
-│       └── DeleteAccountUseCase.swift
+│       ├── DeleteAccountUseCase.swift
+│       └── ReminderUseCases.swift
 │
 ├── Data/
 │   ├── Repositories/               ← Concrete implementations of Domain protocols
 │   │   ├── SessionRepository.swift
 │   │   ├── MessageRepository.swift
 │   │   ├── MemoryRepository.swift
+│   │   ├── ReminderRepository.swift
 │   │   └── VectorRepository.swift
 │   ├── Local/                      ← GRDB models, SQLite queries
 │   └── Remote/                     ← Supabase/OpenAI API call implementations
@@ -127,9 +130,11 @@ iOSApp/
 │   ├── Memories/
 │   │   ├── MemoryListView.swift
 │   │   └── MemoryListViewModel.swift
-│   ├── Reminders/                  ← task 19d — list / edit local reminders
+│   ├── Reminders/
 │   │   ├── RemindersListView.swift
-│   │   └── RemindersListViewModel.swift
+│   │   ├── RemindersListViewModel.swift
+│   │   ├── ReminderEditorView.swift
+│   │   └── ReminderEditorViewModel.swift
 │   └── Settings/
 │       ├── SettingsView.swift
 │       └── SettingsViewModel.swift
@@ -1064,11 +1069,13 @@ final class AppContainer: ObservableObject {
             closeSessionUseCase: makeCloseSessionUseCase(),
             llmClient: LLMClient.shared,
             messageRepository: messageRepository,
-            sessionRepository: sessionRepository
+            sessionRepository: sessionRepository,
+            notificationService: localNotificationService
         )
     }
 
-    // makeChatSessionListViewModel(router:) / makeUpdateChatSessionUseCase() / makeDeleteSessionUseCase() / makeDeleteMemoryUseCase() / makeDeleteAccountUseCase() / makeSettingsViewModel() — see AppContainer.swift
+    // Also: makeRemindersListViewModel / makeReminderEditorViewModel / reminder use cases /
+    // makeChatSessionListViewModel / makeDeleteSessionUseCase / makeSettingsViewModel — see AppContainer.swift
 }
 ```
 

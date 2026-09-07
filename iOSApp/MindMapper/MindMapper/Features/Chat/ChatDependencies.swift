@@ -12,4 +12,5 @@ struct ChatDependencies {
     let llmClient: LLMClientProtocol
     let messageRepository: MessageRepositoryProtocol
     let sessionRepository: SessionRepositoryProtocol
+    let notificationService: LocalNotificationServiceProtocol
 }

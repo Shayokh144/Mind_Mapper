@@ -31,7 +31,7 @@ final class DatabaseManagerTests: XCTestCase {
         }
         XCTAssertEqual(
             tableNames,
-            ["memories", "memory_entities", "messages", "sessions", "users", "vectors"]
+            ["memories", "memory_entities", "messages", "reminders", "sessions", "users", "vectors"]
         )
 
         let indexNames = try database.dbQueue.read { db in
@@ -46,7 +46,7 @@ final class DatabaseManagerTests: XCTestCase {
         }
         XCTAssertEqual(
             indexNames,
-            ["idx_entities_lookup", "idx_memories_user", "idx_messages_session"]
+            ["idx_entities_lookup", "idx_memories_user", "idx_messages_session", "idx_reminders_memory", "idx_reminders_session", "idx_reminders_user"]
         )
     }
 

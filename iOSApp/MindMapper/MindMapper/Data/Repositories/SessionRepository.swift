@@ -80,12 +80,19 @@ nonisolated struct SessionRepository: SessionRepositoryProtocol {
     func deleteCascade(id: String) async throws {
         do {
             try await database.dbQueue.write { db in
+                try ReminderRecord
+                    .filter(Column("session_id") == id)
+                    .deleteAll(db)
+
                 let memoryIds = try MemoryRecord
                     .filter(Column("session_id") == id)
                     .fetchAll(db)
                     .map(\.id)
 
                 if !memoryIds.isEmpty {
+                    try ReminderRecord
+                        .filter(memoryIds.contains(Column("memory_id")))
+                        .deleteAll(db)
                     try MemoryEntityRecord
                         .filter(memoryIds.contains(Column("memory_id")))
                         .deleteAll(db)

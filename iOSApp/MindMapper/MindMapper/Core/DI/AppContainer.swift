@@ -15,6 +15,8 @@ final class AppContainer: ObservableObject {
     let vectorRepository: VectorRepositoryProtocol
     let sessionRepository: SessionRepositoryProtocol
     let messageRepository: MessageRepositoryProtocol
+    let reminderRepository: ReminderRepositoryProtocol
+    let localNotificationService: LocalNotificationServiceProtocol
 
     /// Returns `nil` if Supabase URL config is invalid.
     static func make(database: DatabaseManager) -> AppContainer? {
@@ -50,6 +52,8 @@ final class AppContainer: ObservableObject {
         self.vectorRepository = VectorRepository(database: database)
         self.sessionRepository = SessionRepository(database: database)
         self.messageRepository = MessageRepository(database: database)
+        self.reminderRepository = ReminderRepository(database: database)
+        self.localNotificationService = LocalNotificationService()
     }
 
     func makeLoginViewModel() -> LoginViewModel {
@@ -76,7 +80,8 @@ final class AppContainer: ObservableObject {
     func makeSettingsViewModel() -> SettingsViewModel {
         SettingsViewModel(
             authManager: authManager,
-            deleteAccountUseCase: makeDeleteAccountUseCase()
+            deleteAccountUseCase: makeDeleteAccountUseCase(),
+            notificationService: localNotificationService
         )
     }
 
@@ -100,11 +105,19 @@ final class AppContainer: ObservableObject {
     }
 
     func makeDeleteSessionUseCase() -> DeleteSessionUseCaseProtocol {
-        DeleteSessionUseCase(sessionRepository: sessionRepository)
+        DeleteSessionUseCase(
+            sessionRepository: sessionRepository,
+            reminderRepository: reminderRepository,
+            notificationService: localNotificationService
+        )
     }
 
     func makeDeleteMemoryUseCase() -> DeleteMemoryUseCaseProtocol {
-        DeleteMemoryUseCase(memoryRepository: memoryRepository)
+        DeleteMemoryUseCase(
+            memoryRepository: memoryRepository,
+            reminderRepository: reminderRepository,
+            notificationService: localNotificationService
+        )
     }
 
     func makeDeleteAccountUseCase() -> DeleteAccountUseCaseProtocol {
@@ -179,7 +192,55 @@ final class AppContainer: ObservableObject {
             closeSessionUseCase: makeCloseSessionUseCase(),
             llmClient: LLMClient.shared,
             messageRepository: messageRepository,
-            sessionRepository: sessionRepository
+            sessionRepository: sessionRepository,
+            notificationService: localNotificationService
+        )
+    }
+
+    func makeScheduleReminderUseCase() -> ScheduleReminderUseCaseProtocol {
+        ScheduleReminderUseCase(
+            reminderRepository: reminderRepository,
+            notificationService: localNotificationService
+        )
+    }
+
+    func makeUpdateReminderUseCase() -> UpdateReminderUseCaseProtocol {
+        UpdateReminderUseCase(
+            reminderRepository: reminderRepository,
+            notificationService: localNotificationService
+        )
+    }
+
+    func makeDeleteReminderUseCase() -> DeleteReminderUseCaseProtocol {
+        DeleteReminderUseCase(
+            reminderRepository: reminderRepository,
+            notificationService: localNotificationService
+        )
+    }
+
+    func makeRemindersListViewModel(router: AppRouter) -> RemindersListViewModel? {
+        guard let userId = authManager.currentUser?.id else {
+            AppLogger.error("makeRemindersListViewModel called without an authenticated user")
+            return nil
+        }
+        return RemindersListViewModel(
+            userId: userId,
+            reminderRepository: reminderRepository,
+            deleteReminderUseCase: makeDeleteReminderUseCase(),
+            router: router
+        )
+    }
+
+    func makeReminderEditorViewModel(draft: ReminderEditorDraft) -> ReminderEditorViewModel? {
+        guard let userId = authManager.currentUser?.id else {
+            AppLogger.error("makeReminderEditorViewModel called without an authenticated user")
+            return nil
+        }
+        return ReminderEditorViewModel(
+            userId: userId,
+            draft: draft,
+            scheduleReminderUseCase: makeScheduleReminderUseCase(),
+            updateReminderUseCase: makeUpdateReminderUseCase()
         )
     }
 

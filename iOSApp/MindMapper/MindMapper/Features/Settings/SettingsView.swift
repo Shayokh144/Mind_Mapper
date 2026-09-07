@@ -20,6 +20,8 @@ struct SettingsView: View {
                         .secondaryStyle()
                 }
 
+                notificationSection
+
                 if let errorMessage = viewModel.errorMessage {
                     ThemeBadge(text: errorMessage, icon: "xmark.circle", role: .danger)
                 }
@@ -69,7 +71,30 @@ struct SettingsView: View {
                 guard deleteAccountRequestID > 0 else { return }
                 await viewModel.confirmDeleteAccount()
             }
+            .task {
+                await viewModel.refreshNotificationStatus()
+            }
         }
+    }
+
+    private var notificationSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text(L10n.Settings.notificationsTitle)
+                .headlineStyle()
+            Text(viewModel.notificationStatusText)
+                .secondaryStyle()
+            if viewModel.showsOpenSettingsForNotifications {
+                SecondaryButton(title: L10n.Settings.openSystemSettings) {
+                    openSystemSettings()
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func openSystemSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 
     private var deleteConfirmSheet: some View {

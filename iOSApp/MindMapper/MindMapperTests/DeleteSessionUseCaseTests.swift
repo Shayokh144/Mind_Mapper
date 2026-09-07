@@ -13,7 +13,12 @@ final class DeleteSessionUseCaseTests: XCTestCase {
         try super.setUpWithError()
         database = try DatabaseManager(dbQueue: DatabaseQueue())
         sessionRepository = SessionRepository(database: database)
-        sut = DeleteSessionUseCase(sessionRepository: sessionRepository)
+        let reminderRepository = ReminderRepository(database: database)
+        sut = DeleteSessionUseCase(
+            sessionRepository: sessionRepository,
+            reminderRepository: reminderRepository,
+            notificationService: MockLocalNotificationService()
+        )
         user = User(email: "delete-session@example.com")
         session = Session(userId: user.id, title: "Gift plans")
         try database.dbQueue.write { db in

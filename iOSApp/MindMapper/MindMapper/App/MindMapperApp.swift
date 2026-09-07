@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct MindMapperApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     private let database = DatabaseManager.shared
 
     var body: some Scene {

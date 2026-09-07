@@ -21,7 +21,7 @@ nonisolated final class MockClassifyIntentUseCase: ClassifyIntentUseCaseProtocol
 }
 
 nonisolated final class MockSaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unchecked Sendable {
-    var result = "Got it — saved."
+    var result = SaveMemoryResult(ackText: "Got it — saved.", memoryId: "mem-1", reminderProposal: nil)
     var error: Error?
     private(set) var executeCallCount = 0
     private(set) var lastText: String?
@@ -32,7 +32,7 @@ nonisolated final class MockSaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unche
         sessionId: String,
         userId: String,
         conversationContext: [LLMMessage]
-    ) async throws -> String {
+    ) async throws -> SaveMemoryResult {
         executeCallCount += 1
         lastText = text
         lastConversationContext = conversationContext

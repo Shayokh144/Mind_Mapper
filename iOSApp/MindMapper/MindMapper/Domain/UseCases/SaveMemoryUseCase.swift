@@ -6,7 +6,7 @@ protocol SaveMemoryUseCaseProtocol {
         sessionId: String,
         userId: String,
         conversationContext: [LLMMessage]
-    ) async throws -> String
+    ) async throws -> SaveMemoryResult
 }
 
 /// STORE pipeline: extract → supersede lookup → embed → atomic SQLite write → vector → ack.
@@ -33,7 +33,7 @@ nonisolated final class SaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unchecked
         sessionId: String,
         userId: String,
         conversationContext: [LLMMessage] = []
-    ) async throws -> String {
+    ) async throws -> SaveMemoryResult {
         let extraction = try await memoryExtractor.extract(
             from: text,
             conversationContext: conversationContext
@@ -62,7 +62,12 @@ nonisolated final class SaveMemoryUseCase: SaveMemoryUseCaseProtocol, @unchecked
             superseding: supersedesId
         )
         try await vectorRepository.save(embedding: embedding, memoryId: memory.id)
-        return try await acknowledge(rawText: text, conversationContext: conversationContext)
+        let ack = try await acknowledge(rawText: text, conversationContext: conversationContext)
+        return SaveMemoryResult(
+            ackText: ack,
+            memoryId: memory.id,
+            reminderProposal: extraction.reminderProposal
+        )
     }
 
     private func resolveSupersedesId(hint: String?) async throws -> String? {

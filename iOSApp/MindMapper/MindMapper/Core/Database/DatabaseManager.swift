@@ -53,6 +53,7 @@ nonisolated final class DatabaseManager: Sendable {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1_initial", migrate: V1InitialMigration.run)
         migrator.registerMigration("v2_session_pin", migrate: V2SessionPinMigration.run)
+        migrator.registerMigration("v3_reminders", migrate: V3RemindersMigration.run)
         try migrator.migrate(dbQueue)
     }
 }

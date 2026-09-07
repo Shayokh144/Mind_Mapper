@@ -37,4 +37,4 @@ Prefer creating ViewModels in `navigationDestination` (or equivalent) via the co
 
 ## Tabs
 
-Root uses `TabView` with Chats / Memories / Settings; tint with `Color.theme.accent`.
+Root uses `TabView` with Chats / Memories / Reminders / Settings; tint with `Color.theme.accent`.

@@ -11,6 +11,10 @@ enum L10n {
         static var loading: String { tr("common.loading") }
         static var genericError: String { tr("common.generic_error") }
         static var newConversation: String { tr("common.new_conversation") }
+        static var yes: String { tr("common.yes") }
+        static var no: String { tr("common.no") }
+        static var save: String { tr("common.save") }
+        static var cancel: String { tr("common.cancel") }
     }
 
     enum Brand {
@@ -22,6 +26,7 @@ enum L10n {
     enum Tab {
         static var chats: String { tr("tab.chats") }
         static var memories: String { tr("tab.memories") }
+        static var reminders: String { tr("tab.reminders") }
         static var settings: String { tr("tab.settings") }
     }
 
@@ -82,6 +87,11 @@ enum L10n {
         static var deleteAccountConfirmPlaceholder: String { tr("settings.delete_account_confirm_placeholder") }
         static var deleteAccountConfirmAction: String { tr("settings.delete_account_confirm_action") }
         static var deleteAccountFailed: String { tr("settings.delete_account_failed") }
+        static var notificationsTitle: String { tr("settings.notifications_title") }
+        static var notificationsAuthorized: String { tr("settings.notifications_authorized") }
+        static var notificationsDenied: String { tr("settings.notifications_denied") }
+        static var notificationsNotDetermined: String { tr("settings.notifications_not_determined") }
+        static var openSystemSettings: String { tr("settings.open_system_settings") }
     }
 
     // MARK: - Sessions
@@ -154,6 +164,44 @@ enum L10n {
 
         static func messagesRemainingAccessibility(_ remaining: Int, max: Int) -> String {
             String(format: tr("chat.messages_remaining_a11y"), locale: .current, remaining, max)
+        }
+    }
+
+    // MARK: - Reminders
+
+    enum Reminders {
+        static var title: String { tr("reminders.title") }
+        static var empty: String { tr("reminders.empty") }
+        static var addAccessibility: String { tr("reminders.add_a11y") }
+        static var deleteAction: String { tr("reminders.delete_action") }
+        static var editorTitle: String { tr("reminders.editor_title") }
+        static var titleLabel: String { tr("reminders.title_label") }
+        static var titlePlaceholder: String { tr("reminders.title_placeholder") }
+        static var bodyLabel: String { tr("reminders.body_label") }
+        static var bodyPlaceholder: String { tr("reminders.body_placeholder") }
+        static var dateLabel: String { tr("reminders.date_label") }
+        static var pickDate: String { tr("reminders.pick_date") }
+        static var recurrenceLabel: String { tr("reminders.recurrence_label") }
+        static var recurrencePlaceholder: String { tr("reminders.recurrence_placeholder") }
+        static var titleRequired: String { tr("reminders.title_required") }
+        static var bodyRequired: String { tr("reminders.body_required") }
+        static var dateRequired: String { tr("reminders.date_required") }
+        static var dateMustBeFuture: String { tr("reminders.date_must_be_future") }
+        static var recurrenceRequired: String { tr("reminders.recurrence_required") }
+        static var offerPrompt: String { tr("reminders.offer_prompt") }
+        static var permissionPrePromptTitle: String { tr("reminders.permission_pre_title") }
+        static var permissionPrePromptMessage: String { tr("reminders.permission_pre_message") }
+        static var permissionContinue: String { tr("reminders.permission_continue") }
+        static var deniedTitle: String { tr("reminders.denied_title") }
+        static var deniedMessage: String { tr("reminders.denied_message") }
+
+        static func recurrenceTitle(_ recurrence: ReminderRecurrence) -> String {
+            switch recurrence {
+            case .once: return tr("reminders.recurrence_once")
+            case .daily: return tr("reminders.recurrence_daily")
+            case .weekly: return tr("reminders.recurrence_weekly")
+            case .monthly: return tr("reminders.recurrence_monthly")
+            }
         }
     }
 

@@ -21,6 +21,12 @@ struct RootView: View {
             }
             .tag(AppRouter.Tab.memories)
 
+            remindersTab
+                .tabItem {
+                    Label(L10n.Tab.reminders, systemImage: "bell")
+                }
+                .tag(AppRouter.Tab.reminders)
+
             SettingsView(viewModel: container.makeSettingsViewModel())
                 .tabItem {
                     Label(L10n.Tab.settings, systemImage: "gear")
@@ -28,10 +34,23 @@ struct RootView: View {
                 .tag(AppRouter.Tab.settings)
         }
         .tint(Color.theme.accent)
+        .sheet(item: $router.presentedSheet) { sheet in
+            switch sheet {
+            case .newSession:
+                NewSessionSheet()
+            case let .memoryDetail(memoryId):
+                MemoryDetailPlaceholder(memoryId: memoryId)
+            case let .reminderEditor(draft):
+                reminderEditor(draft: draft)
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openMemory)) { notification in
             Task {
                 await handleOpenMemory(notification)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openReminder)) { _ in
+            router.openRemindersTab()
         }
     }
 
@@ -49,13 +68,30 @@ struct RootView: View {
                     }
                 }
         }
-        .sheet(item: $router.presentedSheet) { sheet in
-            switch sheet {
-            case .newSession:
-                NewSessionSheet()
-            case let .memoryDetail(memoryId):
-                MemoryDetailPlaceholder(memoryId: memoryId)
+    }
+
+    private var remindersTab: some View {
+        NavigationStack {
+            if let viewModel = container.makeRemindersListViewModel(router: router) {
+                RemindersListView(viewModel: viewModel)
+            } else {
+                Text(L10n.Sessions.signInRequired)
+                    .bodyStyle()
+                    .padding(Spacing.lg)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.theme.background)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func reminderEditor(draft: ReminderEditorDraft) -> some View {
+        if let viewModel = container.makeReminderEditorViewModel(draft: draft) {
+            ReminderEditorView(viewModel: viewModel)
+        } else {
+            Text(L10n.Sessions.signInRequired)
+                .bodyStyle()
+                .padding(Spacing.lg)
         }
     }
 

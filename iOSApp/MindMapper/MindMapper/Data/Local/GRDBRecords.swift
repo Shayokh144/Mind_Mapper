@@ -3,7 +3,7 @@ import GRDB
 
 // MARK: - Shared column naming (camelCase properties ↔ snake_case columns)
 
-nonisolated private enum GRDBSnakeCase: Sendable {
+nonisolated enum GRDBSnakeCase: Sendable {
     static let decoding: DatabaseColumnDecodingStrategy = .convertFromSnakeCase
     static let encoding: DatabaseColumnEncodingStrategy = .convertToSnakeCase
 }

@@ -244,47 +244,56 @@ Never on cold launch or on STORE alone.
 
 ### Domain + persistence
 
-- [ ] **1.** `Domain/Models/Reminder.swift` — `ReminderRecurrence`: `once`, `daily`, `weekly`, `monthly`.
-- [ ] **2.** Migration `v3_reminders` + `ReminderRecord` + `ReminderRepositoryProtocol` / impl.
-- [ ] **3.** Wire in `AppContainer`.
+- [x] **1.** `Domain/Models/Reminder.swift` — `ReminderRecurrence`: `once`, `daily`, `weekly`, `monthly`.
+- [x] **2.** Migration `v3_reminders` + `ReminderRecord` + `ReminderRepositoryProtocol` / impl.
+- [x] **3.** Wire in `AppContainer`.
 
 ### Notification service
 
-- [ ] **4.** `Core/Notifications/LocalNotificationService.swift` (+ protocol): status, request, schedule, cancel, reschedule; calendar triggers for once/daily/weekly/monthly.
-- [ ] **5.** `UNUserNotificationCenter` delegate — foreground presentation + tap → `.openMemory` / `.openReminder` with `session_id` / `memory_id` / `reminder_id`.
+- [x] **4.** `Core/Notifications/LocalNotificationService.swift` (+ protocol): status, request, schedule, cancel, reschedule; calendar triggers for once/daily/weekly/monthly.
+- [x] **5.** `UNUserNotificationCenter` delegate — foreground presentation + tap → `.openMemory` / `.openReminder` with `session_id` / `memory_id` / `reminder_id`.
 
 ### Extraction + chat Confirm UX
 
-- [ ] **6.** Extend `MemoryExtractor` / `ExtractionResult` with `shouldSetNotification` + notification title / description / datetime / recurrence (`null` allowed). Update prompt with examples (medicine @ 10 PM vs ask HR with null datetime).
-- [ ] **7.** `SaveMemoryUseCase` (or STORE result type) returns ack text **+** `ReminderProposal?`. **Never** schedule inside save.
-- [ ] **8.** `ChatViewModel` / `ChatView`: Yes/No under ack when proposal flag true; Yes → permission → sheet; wire `ScheduleReminderUseCase` / update / delete.
-- [ ] **9.** Sheet ViewModel: `canSave` validation; map ISO datetime with device `Calendar` / time zone; reject past dates.
+- [x] **6.** Extend `MemoryExtractor` / `ExtractionResult` with `shouldSetNotification` + notification title / description / datetime / recurrence (`null` allowed). Update prompt with examples (medicine @ 10 PM vs ask HR with null datetime).
+- [x] **7.** `SaveMemoryUseCase` (or STORE result type) returns ack text **+** `ReminderProposal?`. **Never** schedule inside save.
+- [x] **8.** `ChatViewModel` / `ChatView`: Yes/No under ack when proposal flag true; Yes → permission → sheet; wire `ScheduleReminderUseCase` / update / delete.
+- [x] **9.** Sheet ViewModel: `canSave` validation; map ISO datetime with device `Calendar` / time zone; reject past dates.
 
 ### Reminders tab + Settings
 
-- [ ] **10.** `AppRouter.Tab.reminders` + `RootView` + `L10n`.
-- [ ] **11.** `Features/Reminders/*` list + VM + row model + **+** create; `AppContainer` factory.
-- [ ] **12.** Settings notification status section.
-- [ ] **13.** Update `app-flow.md`, `AGENT.md` tree/factories when shipping.
+- [x] **10.** `AppRouter.Tab.reminders` + `RootView` + `L10n`.
+- [x] **11.** `Features/Reminders/*` list + VM + row model + **+** create; `AppContainer` factory.
+- [x] **12.** Settings notification status section.
+- [x] **13.** Update `app-flow.md`, `AGENT.md` tree/factories when shipping.
 
 ### Tests & docs
 
-- [ ] **14.** Unit tests: proposal decode (null fields); `canSave` matrix; repo CRUD; notification service spy; Yes does not schedule until Save; delete cancels id; monthly/weekly trigger builders.
+- [x] **14.** Unit tests: proposal decode (null fields); `canSave` matrix; repo CRUD; notification service spy; Yes does not schedule until Save; delete cancels id; monthly/weekly trigger builders.
 - [ ] **15.** Manual: medicine +1 min; ask HR (null time → must pick); edit; delete; deny permission; tap notification → chat; manual **+**.
-- [ ] **16.** Mark this task As shipped; Phase 14 pointer; learning note optional.
+- [x] **16.** Mark this task As shipped; Phase 14 pointer; learning note optional.
 
 ---
 
 ## ✅ Done When
 
-- [ ] Medicine tomorrow 10 PM → ack + Yes/No → sheet pre-filled → Save → pending local notification + Reminders tab row.
-- [ ] Ask HR (no time) → `shouldSetNotification=true`, datetime null → sheet placeholders → Save disabled until time (and all fields) set.
-- [ ] Recurrence supports **once / daily / weekly / monthly**.
-- [ ] Manual **+** creates a reminder without chat.
-- [ ] No permission prompt on cold launch or STORE without Yes.
-- [ ] Edit/delete reschedules or cancels UN requests.
-- [ ] Tap notification opens related session when linked.
-- [ ] Thin Views; DI; theme / `L10n`; tests pass.
+- [x] Medicine tomorrow 10 PM → ack + Yes/No → sheet pre-filled → Save → pending local notification + Reminders tab row. *(unit-covered; manual still on item 15)*
+- [x] Ask HR (no time) → `shouldSetNotification=true`, datetime null → sheet placeholders → Save disabled until time (and all fields) set.
+- [x] Recurrence supports **once / daily / weekly / monthly**.
+- [x] Manual **+** creates a reminder without chat.
+- [x] No permission prompt on cold launch or STORE without Yes.
+- [x] Edit/delete reschedules or cancels UN requests.
+- [x] Tap notification opens related session when linked.
+- [x] Thin Views; DI; theme / `L10n`; tests pass.
+
+---
+
+## As shipped
+
+- Migration **`v3_reminders`**. Domain `Reminder` / `ReminderProposal` / `SaveMemoryResult`. STORE never schedules.
+- Confirm UX: Yes/No under ack → permission on Yes only → `ReminderEditorView` sheet (shared with tab + / edit). **Cancel and Save both clear `pendingReminderOffer`.**
+- Tabs: Chats | Memories | **Reminders** | Settings. Notification tap with `session_id`/`memory_id` → chat; otherwise Reminders tab.
+- Learning: `docs/learning/local-reminders-notifications.md`.
 
 ---
 

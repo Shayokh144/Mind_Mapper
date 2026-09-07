@@ -14,6 +14,7 @@ final class ChatViewModelTests: XCTestCase {
     private var messages: MockMessageRepository!
     private var sessions: MockSessionRepository!
     private var llm: MockLLMService!
+    private var notifications: MockLocalNotificationService!
     private var router: AppRouter!
     private var session: Session!
     private var sut: ChatViewModel!
@@ -31,6 +32,7 @@ final class ChatViewModelTests: XCTestCase {
         messages = MockMessageRepository()
         sessions = MockSessionRepository()
         llm = MockLLMService()
+        notifications = MockLocalNotificationService()
         router = AppRouter()
         session = Session(userId: "user-1", title: "Test")
         sessions.sessions = [session]
@@ -52,12 +54,17 @@ final class ChatViewModelTests: XCTestCase {
         messages = nil
         sessions = nil
         llm = nil
+        notifications = nil
         try await super.tearDown()
     }
 
     func test_sendMessage_storeIntent_callsSaveMemoryAndAppendsAck() async {
         classify.intent = .store
-        saveMemory.result = "Got it — keys noted."
+        saveMemory.result = SaveMemoryResult(
+            ackText: "Got it — keys noted.",
+            memoryId: "mem-keys",
+            reminderProposal: nil
+        )
 
         await sut.sendMessage("I put my keys on the table")
 
@@ -330,6 +337,55 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertFalse(sut.isLoading)
     }
 
+    func test_storeWithReminderProposal_setsPendingOffer_doesNotSchedule() async {
+        classify.intent = .store
+        saveMemory.result = SaveMemoryResult(
+            ackText: "Got it — medicine noted.",
+            memoryId: "mem-med",
+            reminderProposal: ReminderProposal(
+                shouldSetNotification: true,
+                title: "Take medicine",
+                description: "Time to take your medicine",
+                fireAt: Date().addingTimeInterval(3_600),
+                recurrence: .once
+            )
+        )
+
+        await sut.sendMessage("I need to eat medicine tomorrow at 10 PM")
+
+        XCTAssertEqual(sut.pendingReminderOffer?.memoryId, "mem-med")
+        XCTAssertEqual(sut.pendingReminderOffer?.title, "Take medicine")
+        XCTAssertTrue(notifications.scheduled.isEmpty)
+        XCTAssertEqual(notifications.requestCallCount, 0)
+    }
+
+    func test_acceptReminderOffer_authorized_presentsSheetWithoutScheduling() async {
+        classify.intent = .store
+        saveMemory.result = SaveMemoryResult(
+            ackText: "Noted.",
+            memoryId: "mem-hr",
+            reminderProposal: ReminderProposal(
+                shouldSetNotification: true,
+                title: "Ask HR",
+                description: nil,
+                fireAt: nil,
+                recurrence: nil
+            )
+        )
+        notifications.status = .authorized
+        await sut.sendMessage("I need to ask office HR about leave")
+
+        await sut.acceptReminderOffer()
+
+        XCTAssertTrue(notifications.scheduled.isEmpty)
+        if case let .reminderEditor(draft) = router.presentedSheet {
+            XCTAssertEqual(draft.memoryId, "mem-hr")
+            XCTAssertFalse(draft.didSelectDate)
+        } else {
+            XCTFail("Expected reminder editor sheet")
+        }
+    }
+
     // MARK: - Helpers
 
     private func makeSUT(inactivityInterval: TimeInterval = 120) -> ChatViewModel {
@@ -346,7 +402,8 @@ final class ChatViewModelTests: XCTestCase {
                 closeSessionUseCase: closeSession,
                 llmClient: llm,
                 messageRepository: messages,
-                sessionRepository: sessions
+                sessionRepository: sessions,
+                notificationService: notifications
             ),
             deleteSessionUseCase: deleteSession,
             router: router,

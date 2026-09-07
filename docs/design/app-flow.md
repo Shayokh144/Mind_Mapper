@@ -11,7 +11,7 @@ Primary flow code:
 - `Core/Navigation/AppRouter.swift`
 - `Core/Network/AuthManager.swift` / `AuthManagerProtocol.swift`
 - `Core/DI/AppContainer.swift`
-- `Features/Onboarding|Auth|Root|Sessions|Chat|Memories|Settings/*`
+- `Features/Onboarding|Auth|Root|Sessions|Chat|Memories|Reminders|Settings/*`
 
 ---
 
@@ -21,13 +21,13 @@ Primary flow code:
 |------|-------------|
 | Boot | System `LaunchScreen` (blue + centered “Mind Mapper”) → `DatabaseManager` → `AppContainer` → `AppRootHost` / `SessionRestoreView`, or boot-failure text |
 | Theme | Color/font/spacing tokens + shared components (`PrimaryButton`, `ThemeTextField`, `ThemeBadge`, …) |
-| Local DB | GRDB `memory.db`, V1 schema (`users`, `sessions`, `messages`, `memories`, …) |
+| Local DB | GRDB `memory.db`, V1 schema + `v2_session_pin` + **`v3_reminders`** |
 | Auth | Email sign up / sign in / sign out, session restore, forgot password, set new password, deep-link callback |
 | Reachability | Single `NetworkReachabilityService` (`NWPathMonitor`), global offline banner, `NetworkGate` + auth VM guards |
 | Reconnect | On path → connected, `revalidateSessionIfNeeded()` |
 | Local user | On auth success, upsert `users` via `AuthRepository` |
-| Screens in flow | Onboarding, Login (sheet), Forgot password (sheet), Set new password, Root tabs (Chats / Memories / Settings), Session list, Chat (rolling transcript + message quota bar), session restore splash, boot failure, offline banner. **Planned (19d):** Reminders tab + chat reminder offer |
-| Navigation | `AppRouter` (`path`, sheets, `selectedTab`, `.openMemory` deep link) as `@EnvironmentObject` |
+| Screens in flow | Onboarding, Login (sheet), Forgot password (sheet), Set new password, Root tabs (Chats / Memories / **Reminders** / Settings), Session list, Chat (rolling transcript + message quota bar + reminder Yes/No), session restore splash, boot failure, offline banner |
+| Navigation | `AppRouter` (`path`, sheets including reminder editor, `selectedTab`, `.openMemory` / `.openReminder`) as `@EnvironmentObject` |
 | Config | `AppConfig` (Supabase URL/key, `mindmapper://auth-callback`) |
 
 ---
@@ -153,6 +153,8 @@ flowchart TD
     SO -->|ok| O["isAuthenticated = false → Onboarding"]
     N["Notification .openMemory"] --> R
     N -->|resolve session_id or memory_id| Chat
+    RemTab["Reminders tab"] --> Editor["Reminder editor sheet"]
+    NR["Notification .openReminder"] --> RemTab
 ```
 
 `RootView` is the authenticated shell. Session list (task 17) and chat UI (task 18) are shipped. Sign-out lives on Settings.
@@ -184,11 +186,12 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 | `LoginView` | Onboarding sheet | Sign-in/up → Root; or sheet → Forgot password |
 | `ForgotPasswordView` | Login sheet | Success message; email deep link later |
 | `SetNewPasswordView` | Recovery deep link | Update password → Root |
-| `RootView` (tabs) | `isAuthenticated` | Chats / Memories / Settings; sign out → Onboarding |
+| `RootView` (tabs) | `isAuthenticated` | Chats / Memories / Reminders / Settings; sign out → Onboarding |
 | `ChatSessionListView` | Chats tab root | + / kebab (rename·tag) / pin swipe / row → `ChatView` via `AppRouter` |
-| `ChatView` | `Destination.chat` | Menu memories/delete; disappear/background → `closeSession`; 500 chars/message; rolling LLM context (12); max 40 messages/session + quota bar |
+| `ChatView` | `Destination.chat` | Menu memories/delete; STORE reminder Yes/No → editor sheet; disappear/background → `closeSession`; 500 chars/message; rolling LLM context (12); max 40 messages/session + quota bar |
+| `RemindersListView` | Reminders tab | + / row edit / swipe delete; editor sheet Save → SQLite + local notification |
 | `MemoryListView` (placeholder → task 22) | Memories tab or push | — |
-| `SettingsView` | Settings tab | Sign out / delete account → Onboarding |
+| `SettingsView` | Settings tab | Notification permission status; sign out / delete account → Onboarding |
 | Deep-link error badge | Failed `handleAuthCallback` | Tap to clear |
 | Offline banner (top) | `networkReachability.status == .disconnected` | Auto-hides when connected |
 
@@ -200,8 +203,7 @@ ViewModels never talk to Supabase or GRDB directly. Factories live on `AppContai
 |------|--------|
 | `ContentView` | Xcode template leftover — not used by `@main` |
 | Memories list / memory detail content | Placeholders — task **22** |
-| Local reminders / notifications (chat offer + Reminders tab) | Planned — task **19d**: structured LLM proposal (`should_set_notification` + title/description/datetime/recurrence); Yes/No + editor (null → placeholders, Save validated); tab + manual +; once/daily/weekly/monthly |
-| Push notification → `.openMemory` poster | Observer ready; local tap wiring in **19d**; remote push still out of scope |
+| Push notification / APNs / FCM | Out of scope (19d is local only) |
 | Sign in with Apple | Pre-release checklist |
 
 ---

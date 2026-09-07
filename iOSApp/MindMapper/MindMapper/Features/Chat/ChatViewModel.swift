@@ -14,11 +14,14 @@ final class ChatViewModel: ObservableObject {
     @Published var isDeleteConfirmationPresented = false
     /// True while the input bar is editing the incomplete last user turn.
     @Published private(set) var isEditingFailedTurn = false
+    @Published var pendingReminderOffer: ReminderOfferDisplayModel?
+    @Published var showReminderPermissionPrePrompt = false
+    @Published var showNotificationDeniedHelp = false
 
-    private let dependencies: ChatDependencies
+    let dependencies: ChatDependencies
     private let deleteSessionUseCase: DeleteSessionUseCaseProtocol
-    private let router: AppRouter
-    private var sessionId: String
+    let router: AppRouter
+    var sessionId: String
     private let userId: String
     private let inactivityInterval: TimeInterval
     private let inputMaxLength = ChatLimits.maxCharactersPerMessage
@@ -355,6 +358,7 @@ final class ChatViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         lastAnswerSessionCount = 0
+        pendingReminderOffer = nil
         return pipelineGeneration
     }
 
@@ -488,12 +492,14 @@ final class ChatViewModel: ObservableObject {
 
         switch intent {
         case .store:
-            return try await dependencies.saveMemoryUseCase.execute(
+            let result = try await dependencies.saveMemoryUseCase.execute(
                 text: text,
                 sessionId: sessionId,
                 userId: userId,
                 conversationContext: storeContext
             )
+            applyReminderProposal(result.reminderProposal, memoryId: result.memoryId)
+            return result.ackText
         case .query:
             let answer = try await dependencies.queryMemoryUseCase.execute(
                 question: text,

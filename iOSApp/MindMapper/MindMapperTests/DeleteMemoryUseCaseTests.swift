@@ -13,7 +13,11 @@ final class DeleteMemoryUseCaseTests: XCTestCase {
         try super.setUpWithError()
         database = try DatabaseManager(dbQueue: DatabaseQueue())
         memoryRepository = MemoryRepository(database: database)
-        sut = DeleteMemoryUseCase(memoryRepository: memoryRepository)
+        sut = DeleteMemoryUseCase(
+            memoryRepository: memoryRepository,
+            reminderRepository: ReminderRepository(database: database),
+            notificationService: MockLocalNotificationService()
+        )
         user = User(email: "delete-memory@example.com")
         session = Session(userId: user.id, title: "Gifts")
         try database.dbQueue.write { db in
